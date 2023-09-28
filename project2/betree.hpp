@@ -56,6 +56,10 @@
 #include "swap_space.hpp"
 #include "backing_store.hpp"
 
+#include <string>
+#include <iostream>
+#include <fstream>
+
 ////////////////// Upserts
 
 // Internally, we store data indexed by both the user-specified key
@@ -188,6 +192,65 @@ bool operator==(const Message<Value> &a, const Message<Value> &b)
 // Note: we will flush MIN_FLUSH_SIZE/2 items to a clean in-memory child.
 #define DEFAULT_MIN_FLUSH_SIZE (DEFAULT_MAX_NODE_SIZE / 16ULL)
 
+//make a class for the logger 
+
+class logger
+{
+  //where should this be passed? 
+  int loggranularity;
+  int cpgranularity;
+  int cpcounter;
+  std::vector<std::string> loglist;
+
+  public:
+    void addelement(std::string log)
+    {
+      loglist.push_back(log);
+    }
+    void popback()
+    {
+      loglist.pop_back();
+    }
+    std::string getlog(int i)
+    {
+      return loglist[i];
+    }
+    int getlogsize()
+    {
+      return loglist.size();
+    }
+    int getloggranularity()
+    {
+      return loggranularity;
+    }
+
+    int getcpcounter()
+    {
+      return cpcounter;
+    }
+    void inccpcounter()
+    {
+      cpcounter++;
+    }
+    void resetcpcounter()
+    {
+      cpcounter = 0;
+    }
+
+    logger(int i, int j)
+    {
+      loggranularity = i; //granularity(i)  had errors
+      cpgranularity = j;
+      cpcounter = 0;
+    }
+    logger()
+    {
+      loggranularity = 10; //granularity(i)  had errors
+      cpgranularity = 10;
+      cpcounter = 0;
+    }
+};
+
 template <class Key, class Value>
 class betree
 {
@@ -195,6 +258,9 @@ private:
   class node;
   // We let a swap_space handle all the I/O.
   typedef typename swap_space::pointer<node> node_pointer;
+  //create a logger object, should be constructed in constructor
+  //logger mylogger;
+
   class child_info : public serializable
   {
   public:
@@ -736,6 +802,8 @@ private:
   uint64_t next_timestamp = 1; // Nothing has a timestamp of 0
   Value default_value;
 
+  logger mylogger;
+
 public:
   betree(swap_space *sspace,
          uint64_t maxnodesize = DEFAULT_MAX_NODE_SIZE,
@@ -744,24 +812,152 @@ public:
                                                            min_flush_size(minflushsize),
                                                            max_node_size(maxnodesize),
                                                            min_node_size(minnodesize)
+                                                           //not missing parentheses
   {
     root = ss->allocate(new node);
+    mylogger = logger(10, 10);//no function for call logger::logger() -> no args: default constructor is called (why?)
+    //check pointer default constructor -> make one and give it a value of 20
   }
+
+//******************//******************//******************//******************//******************
 
   // Insert the specified message and handle a split of the root if it
   // occurs.
-  void upsert(int opcode, Key k, Value v)
+  void upsert(int opcode, Key k, Value v) // -p flag is log granularity, -c is checkpoint granula
   {
-    message_map tmp;
-    tmp[MessageKey<Key>(k, next_timestamp++)] = Message<Value>(opcode, v);
-    pivot_map new_nodes = root->flush(*this, tmp);
-    if (new_nodes.size() > 0)
+    //testing code sends opcodes -> can use opcodes to rebuild tree
+
+//starting to implement checkpointing
+/*
+    if(mylogger.getcpcounter() > mylogger.getcpgranularity())
     {
-      root = ss->allocate(new node);
-      root->pivots = new_nodes;
+      //writes the entire tree to disk -> what about version control?
+      int i = 0;
+
+      //wipes old log -> should keep track of this: pushing tree to disk and not deleting log would be bad
+      std::ofstream myfile;
+      myfile.open("logfile.txt", std::ios_base::app); 
+      myfile.close();
+      mylogger.resetcpcounter();
     }
+*/
+    if(opcode == 1)
+    {
+      v = default_value;
+    }
+
+    //line in log file should be <opcode> <key> <value> -> what text to use to construct a key or value?
+    // b.update(t, std::to_string(t) + ":"); -> key is t, value is tostring (t)
+    //so t is a key, and value is the string equivalent -> t is uint64_t
+    //what key, value properties are there?
+
+    std::string request = std::to_string(opcode) + ":" + std::to_string(k) + ":" + v + "\n";
+
+    //std::cout << "upserting \n";
+    //std::cout << request;
+
+    mylogger.addelement(request);
+
+    if(mylogger.getlogsize() > mylogger.getloggranularity() - 1)//ready to persist to disk
+    {
+      //std::cout << mylogger.getsize();
+
+      //std::cout << "opening log \n";
+      std::ofstream myfile;
+      myfile.open("logfile.txt", std::ios_base::app); //its being called and created, but not saving to file correctly
+
+      //std::cout << "log opened \n";
+
+      for(int i = 0; i < mylogger.getloggranularity(); i++)
+      {
+        //std::cout << "writing log \n";
+        std::string oldrequest = mylogger.getlog(i);
+        //std::cout << oldrequest;
+        myfile << oldrequest;
+      }
+      //std::cout << "closing log \n";
+
+      myfile.close();
+
+      //std::cout << "log closed \n";
+
+      //now actually apply the changes to the tree -> 
+      for(int i = 0; i < mylogger.getloggranularity(); i++)
+      {
+
+        //std::cout << "applying changes to tree \n";
+        std::string newrequest = mylogger.getlog(i);
+        //std::cout << "getting request from log \n";
+        //std::cout << newrequest;
+
+
+        std::string token;
+        std::vector<std::string> index;
+
+        for(size_t i = 0; i < newrequest.length(); i++)
+        {
+          char c = newrequest[i];
+          if(!(c == ':'))
+          {
+            token += newrequest[i];
+          }
+          else
+          {
+            index.push_back(token);
+            token = "";            
+          }
+        }
+
+        int opcode = stoi(index[0]);
+        uint16_t k = stoull(index[1]); 
+        std::string v = index[2] + ":";
+
+        if(opcode == 1)
+        {
+          v = default_value;
+        }
+
+        //std::cout << "request parsed \n";
+        //std::cout << "changing tree \n";
+
+        //original code 
+        message_map tmp;
+        tmp[MessageKey<Key>(k, next_timestamp++)] = Message<Value>(opcode, v);
+        pivot_map new_nodes = root->flush(*this, tmp);
+
+        if (new_nodes.size() > 0)
+        {
+          root = ss->allocate(new node);
+          root->pivots = new_nodes;
+        }
+
+        //std::cout << "tree changed \n";
+
+      }
+
+      //std::cout << "tree finished \n";
+
+      //empty the logger after the tree building is complete
+      while(mylogger.getsize() > 0)
+      {
+        mylogger.popback();
+      }
+
+      //increment checkpoint counter
+      mylogger.inccpcounter()
+    }
+
+    else
+    {
+      //do nothing if there is no granularity exceed
+      int i = 0;
+    }
+
+  //******************//******************//******************//******************//******************
+
   }
 
+  //each call upsert, but each have different parameters -> except default i guess, 
   void insert(Key k, Value v)
   {
     upsert(INSERT, k, v);
