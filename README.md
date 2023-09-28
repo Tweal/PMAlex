@@ -1,1 +1,1 @@
-# CD6530Project2
+# CS6530Project2
