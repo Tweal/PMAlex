@@ -73,6 +73,19 @@ swap_space::object::object(swap_space *sspace, serializable * tgt) {
   pincount = 0;
 }
 
+//Reconstruct an object out of memory
+swap_space::object::object(swap_space *sspace, uint64_t id_in, uint64_t version_in) {
+  target = NULL;
+  id = id_in;
+  version = version_in;
+  is_leaf = false;
+  refcount = 1;
+  last_access = sspace->next_access_time++;
+  target_is_dirty = true;
+  pincount = 0;
+}
+
+
 //set # of items that can live in ss.
 void swap_space::set_cache_size(uint64_t sz) {
   assert(sz > 0);
@@ -159,4 +172,3 @@ void swap_space::maybe_evict_something(uint64_t max_keep)
 bool swap_space::contains(uint64_t tgt){
   return (objects.count(tgt) > 0);
 }
-

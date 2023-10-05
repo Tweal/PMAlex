@@ -743,12 +743,28 @@ public:
   betree(swap_space *sspace,
          uint64_t maxnodesize = DEFAULT_MAX_NODE_SIZE,
          uint64_t minnodesize = DEFAULT_MAX_NODE_SIZE / 4,
-         uint64_t minflushsize = DEFAULT_MIN_FLUSH_SIZE) : ss(sspace),
-                                                           min_flush_size(minflushsize),
-                                                           max_node_size(maxnodesize),
-                                                           min_node_size(minnodesize)
+         uint64_t minflushsize = DEFAULT_MIN_FLUSH_SIZE) : 
+    ss(sspace),
+    min_flush_size(minflushsize),
+    max_node_size(maxnodesize),
+    min_node_size(minnodesize)
   {
     root = ss->allocate(new node);
+  }
+
+  // Restores from disk, requires a map of id -> versions.
+  // Does not verify file with that id and version exists, so you better check that first!
+  void restore(std::pair<uint64_t, uint64_t> rootInfo, std::map<uint64_t, uint64_t> idVMap) {
+    root = ss->allocate<node>(rootInfo.first, rootInfo.second);
+
+    // Loop through the id and versions and restore them in the SS
+    // If I'm understanding this correct we don't need to store it
+    for (const std::pair<uint64_t, uint64_t>&  p : idVMap) {
+      // Already allocated root, don't do it again
+      if (p != rootInfo) {
+        ss->restore(p.first, p.second);
+      }
+    }
   }
 
   // Insert the specified message and handle a split of the root if it
@@ -804,7 +820,7 @@ public:
         current = root->get_next_message(&current.first);
       } while (1);
     }
-    catch (std::out_of_range e)
+    catch (const std::out_of_range* e)
     {
     }
   }

@@ -12,7 +12,6 @@
 #define DEFAULT_TEST_CACHE_SIZE (4)
 
 
-
 int main(int argc, char **argv){
     uint64_t max_node_size = DEFAULT_TEST_MAX_NODE_SIZE;
     uint64_t min_flush_size = DEFAULT_TEST_MIN_FLUSH_SIZE;
@@ -28,7 +27,12 @@ int main(int argc, char **argv){
 
     CheckpointManager cpm(logFile, testDir, b, lm);
 
+    std::pair<uint64_t, uint64_t> rootInfo(140, 1);
+    std::map<uint64_t, uint64_t> mapThing;
+    mapThing[140] = 1;
+    mapThing[4] = 1;
+
     CPTester tester(cpm);
-    tester.testParseCheckpointString();
-    tester.testDeleteOldVersions();
+    tester.runAllTests();
+
 }

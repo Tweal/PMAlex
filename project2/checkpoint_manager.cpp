@@ -1,16 +1,4 @@
 #include "checkpoint_manager.hpp"
-#include "log_manager.hpp"
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <algorithm>
-#include <sys/types.h>
-#include <dirent.h>
-#include <limits>
-#include <map>
-
 
 bool CheckpointManager::createCheckpoint() {
     std::cout << "Checkpointing Started" << std::endl;
@@ -21,7 +9,7 @@ bool CheckpointManager::createCheckpoint() {
     b.dump_to_disk();
 
     // Write Checkpoint start to log, include root info.
-    std::ofstream logFile(logFilePath, std::ios_base::app);
+    std::ofstream logFile(logFilePath, std::ios::out | std::ios::trunc);
     auto rootInfo = b.get_root().get_pin().get_info();
     uint64_t rootID = std::get<0>(rootInfo);
     uint64_t rootVersion = std::get<1>(rootInfo);
@@ -40,16 +28,68 @@ bool CheckpointManager::createCheckpoint() {
     return true;
 }
 
-bool CheckpointManager::deleteOldVersions(bool testing){
-
-    DIR* dir = opendir(bsDir.c_str());
+bool CheckpointManager::deleteOldVersions(bool checkIfNeeded){
 
     bool success = true;
+    
+    std::vector<FileInfo> files = getFiles();
+
+    std::map<uint64_t, uint64_t> newestVersions = getIdVersionMap(false);
+
+    for (const FileInfo& file : files) {
+        // We will need to delete files if the version is not the highest or if the id is no longer needed. The second case would be if that node was deleted
+        if (file.version < newestVersions[file.id] ||
+            (!b.id_needed(file.id) && checkIfNeeded)) {
+            std::string filePath = bsDir + "/" + file.fileName;
+            if(remove(filePath.c_str()) != 0){
+                std::cerr << "Error deleting file: " << file.fileName << std::endl;
+                success = false;
+            }
+            else{
+                debug(std::cout << "Deleted: " << file.fileName << std::endl);
+            }
+        }
+    }
+    
+    return success;
+}
+
+
+bool CheckpointManager::restoreFromCheckpoint(std::string checkpointStr) {
+    auto parsedStr = parseCheckpointString(checkpointStr);
+    uint64_t rootID = std::get<0>(parsedStr);
+    uint64_t rootVersion = std::get<1>(parsedStr);
+    bool complete = std::get<2>(parsedStr);
+
+    std::cout << "Restoring from root " << std::to_string(rootID) << "_" << std::to_string(rootVersion) << std::endl;
+
+
+    // If the complete boolean is false we know that we crashed
+    // before finishing deleting files, so we need to finish
+    // deleting before restoring
+    if (!complete) {
+        deleteOldVersions(false);
+        // Then we can append COMPLETE to log
+        std::ofstream logFile(logFilePath, std::ios_base::app);
+        logFile << "COMPLETE" << std::endl;
+        logFile.close();
+    }
+
+    // Now we need to get the map of file ids -> versions
+    std::map<uint64_t, uint64_t> idVersionMap = getIdVersionMap(true);
+
+    // And now we can restore from this root with this info
+    b.restore(std::make_pair(rootID, rootVersion), idVersionMap);
+
+    return true;
+}
+
+std::vector<FileInfo> CheckpointManager::getFiles() {
+    std::vector<FileInfo> files;
+    DIR* dir = opendir(bsDir.c_str());
 
     if (dir) {
         struct dirent* entry;
-
-        std::vector<FileInfo> files;
 
         while ((entry = readdir(dir))) {
             std::string fileName = entry->d_name;
@@ -62,72 +102,44 @@ bool CheckpointManager::deleteOldVersions(bool testing){
                 std::string versionStr = fileName.substr(underscorePos + 1, dotPos - underscorePos - 1);
 
                 try {
-                    int id = std::stoi(idStr);
-                    int version = std::stoi(versionStr);
+                    uint64_t id = std::stoull(idStr);
+                    uint64_t version = std::stoull(versionStr);
 
                     files.push_back({fileName, id, version});
                 } catch (const std::invalid_argument& e) {
-                    std::cerr << "Failed to parse ints: " << idStr << ", " << versionStr << std::endl;
-                    success = false;
+                    throw std::runtime_error("Failed to parse ints: " + idStr + ", " + versionStr);
                 }
             }
         }
         closedir(dir);
+    } else
+        throw std::runtime_error("Failed to open bs directory!");
 
-        std::sort(files.begin(), files.end(), [](const FileInfo& a, const FileInfo& b) {
-            if (a.id != b.id) {
-                return a.id < b.id;
-            } else {
-                return a.version < b.version;
-            }
-        });
-
-        std::map<int, int> newestVersions;
-        // Find the highest version for each id
-        for (const FileInfo& file: files) {
-            if (file.version > newestVersions[file.id]){
-                newestVersions[file.id] = file.version;
-            }
-        }
-
-        for (const FileInfo& file : files) {
-            // We will need to delete files if the version is not the highest or if the id is no longer needed. The second case would be if that node was deleted
-            if (file.version < newestVersions[file.id] || (!b.id_needed(file.id) && !testing)) {
-                std::string filePath = bsDir + "/" + file.fileName;
-                if(remove(filePath.c_str()) != 0){
-                    std::cerr << "Error deleting file: " << file.fileName << std::endl;
-                    success = false;
-                }
-                else{
-                    debug(std::cout << "Deleted: " << file.fileName << std::endl);
-                }
-            }
-        }
-    } else {
-        std::cerr << "Failed to open directory." << std::endl;
-        success = false;
-    }
-
-    return success;
+    return files;
 }
 
+std::map<uint64_t, uint64_t> CheckpointManager::getIdVersionMap(bool getOldest) {
+    std::vector<FileInfo> files = getFiles();
+    
+    std::sort(files.begin(), files.end(), [](const FileInfo& a, const FileInfo& b) {
+        if (a.id != b.id) {
+            return a.id < b.id;
+        } else {
+            return a.version < b.version;
+        }
+    });
 
-bool CheckpointManager::restoreFromCheckpoint(std::string checkpointStr) {
-    auto parsedStr = parseCheckpointString(checkpointStr);
-    uint64_t rootID = std::get<0>(parsedStr);
-    uint64_t rootVersion = std::get<1>(parsedStr);
-    bool complete = std::get<2>(parsedStr);
-
-    // If the complete boolean is false we know that we crashed before finishing deleting files, so we need to restore from newest versions (so that ss->objects has all the ids) and then finish deleting
-    if (!complete) {
-
+    std::map<uint64_t, uint64_t> idVersionMap;
+    // Find the correct version for each id
+    for (const FileInfo& file: files) {
+        if (getOldest ?
+                (file.version < idVersionMap[file.id]) :
+                (file.version > idVersionMap[file.id])){
+            idVersionMap[file.id] = file.version;
+        }
     }
-    // Else we can just restore from oldest
-    else {
 
-    }
-
-    return true;
+    return idVersionMap;
 }
 
 std::tuple<uint64_t, uint64_t, bool> CheckpointManager::parseCheckpointString(std::string checkpointStr){

@@ -8,8 +8,11 @@
 #include <cassert>
 #include <tuple>
 #include <vector>
+#include <limits>
+#include <map>
 #include <algorithm>
 #include <dirent.h>
+#include <sys/types.h>
 #include "betree.hpp"
 #include "log_manager.hpp"
 #include "debug.hpp"
@@ -17,18 +20,30 @@
 // Structure to store file information
 struct FileInfo {
     std::string fileName;
-    int id;
-    int version;
+    uint64_t id;
+    uint64_t version;
 };
 
 class CheckpointManager {
 public:
-    CheckpointManager(std::string logFilePath, std::string bsDir, betree<uint64_t, std::string> b, LogManager logManager) :
+    CheckpointManager(std::string logFilePath, std::string bsDir, betree<uint64_t, std::string> b, LogManager logManager, uint64_t granularity = 10) :
         logFilePath(logFilePath),
         bsDir(bsDir),
         b(b),
-        lm(logManager)
+        lm(logManager),
+        granularity(granularity)
     {}
+
+    // Overload ++obj operator
+    CheckpointManager& operator++() {
+        increment();
+        return *this;
+    }
+
+    // overload obj++ operator. Note, this is not how you would normally do this but this isn't exactly a normal instance of obj++ anyway.
+    CheckpointManager& operator++(int) {
+        return operator++();
+    }
 
     // Method to create a checkpoint of the current system state.
     bool createCheckpoint(void);
@@ -36,15 +51,24 @@ public:
     // Method to restore the system state from a checkpoint.
     bool restoreFromCheckpoint(std::string checkpointStr);
 
-
 private:
-    bool deleteOldVersions(bool testing = false);
+    bool deleteOldVersions(bool checkIfNeeded = true);
+    std::vector<FileInfo> getFiles(void);
+    std::map<uint64_t, uint64_t> getIdVersionMap(bool getOldest);
     std::tuple<uint64_t, uint64_t, bool> parseCheckpointString(std::string checkpointStr);
+
+    void increment(void){
+        ++counter;
+        if (counter % granularity == 0)
+            createCheckpoint();
+    }
 
     std::string logFilePath;
     std::string bsDir;
     betree<uint64_t, std::string> b;
     LogManager lm;
+    uint64_t granularity;
+    uint64_t counter = 0;
     
 friend class CPTester;
 };
@@ -53,7 +77,12 @@ class CPTester {
 public:
     CPTester(CheckpointManager cpm) :
         cpm(cpm)
-    {}
+    {} 
+
+    void runAllTests(void) {
+        testDeleteOldVersions();
+        testParseCheckpointString();
+    }
 
     void testDeleteOldVersions(void) {
         std::cout << "Testing deleteOldVersions" << std::endl;
@@ -62,7 +91,7 @@ public:
         createDummyFiles();
 
         // Now hopefully those files get deleted!
-        cpm.deleteOldVersions(true);
+        cpm.deleteOldVersions(false);
         
         // Verify that there's only one file for each id and they all match the id as that's the highest version
         assert(verifyDir());

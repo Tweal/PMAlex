@@ -181,6 +181,13 @@ public:
     return pointer<Referent>(this, tgt);
   }
 
+  // Given an ID and version number construct an ss object
+  // Used to recover nodes from disk
+  template<class Referent>
+  pointer<Referent> allocate(uint64_t id, uint64_t version) {
+    return pointer<Referent>(this, id, version);
+  }
+
   // This pins an object in memory for the duration of a member
   // access.  It's sort of an instance of the "resource aquisition is
   // initialization" paradigm.
@@ -424,7 +431,28 @@ public:
       ss->current_in_memory_objects++;
       ss->maybe_evict_something();
     }
+
+    // Also only accessable through swap_space::allocate
+    // allocates ss without loading in memory
+    pointer(swap_space *sspace, uint64_t id, uint64_t version) {
+      ss = sspace;
+      target = id;
+      object *o = new object(sspace, id, version);
+      assert(o != NULL);
+      assert(o->target == NULL);
+      assert(ss->objects.count(target) == 0);
+      ss->objects[target] = o;
+    }
   };
+
+  void restore(uint64_t id, uint64_t version) {
+      object *o = new object(this, id, version);
+      assert(o != NULL);
+      assert(o->target == NULL);
+      assert(objects.count(o->id) == 0);
+      objects[o->id] = o;
+
+  }
 
   void evict_all(void);
   bool contains(uint64_t tgt);
@@ -439,6 +467,7 @@ private:
   public:
     
     object(swap_space *sspace, serializable * tgt);
+    object(swap_space *sspace, uint64_t id_in, uint64_t version_in);
     
     serializable * target;
     uint64_t id;
