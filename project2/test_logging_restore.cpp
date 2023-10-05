@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 // INCLUDE YOUR LOGGING FILE HERE
+//#include "log_manager.hpp" //consider only having it in betree
 #include "betree.hpp"
 
 void timer_start(uint64_t &timer) {
@@ -112,7 +113,7 @@ void usage(char *name) {
 
 int test(betree<uint64_t, std::string> &b, uint64_t nops,
          uint64_t number_of_distinct_keys, FILE *script_input,
-         FILE *script_output) {
+         FILE *script_output /*, logger mylogger*/) {
     for (unsigned int i = 0; i < nops; i++) {
 
         printf("%u/%lu\n", i, nops);
@@ -399,6 +400,8 @@ int main(int argc, char **argv) {
     swap_space sspace(&ofpobs, cache_size);
     betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
 
+    b.initlogger(persistence_granularity, checkpoint_granularity); 
+
     /**
      * STUDENTS: INITIALIZE YOUR CLASS HERE
      *
@@ -414,7 +417,7 @@ int main(int argc, char **argv) {
      */
 
     if (strcmp(mode, "test") == 0)
-        test(b, nops, number_of_distinct_keys, script_input, script_output);
+        test(b, nops, number_of_distinct_keys, script_input, script_output);//, mylogger);
     else if (strcmp(mode, "benchmark-upserts") == 0) {
         std::cerr << "benchmark-upserts is not available for this testing program!" << std::endl;
         return 0;
