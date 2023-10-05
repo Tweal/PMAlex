@@ -7,14 +7,16 @@
 
 class LogManager {
 public:
-    LogManager(const std::string& logFilePath);
-    ~LogManager();
+    LogManager(const std::string logFilePath) :
+      logFilePath(logFilePath)  
+    {}
 
-    void writeToLog(const std::string& transaction);
-    void recoverFromLog();
+    void writeToLog(const std::string transaction);
+    void recoverFromLog(void);
+    void flushlog(void){};
 
 private:
-    // Private members and methods for managing the log file and related operations.
+    std::string logFilePath;
 };
 
 #endif // LOG_MANAGER_HPP

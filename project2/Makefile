@@ -11,11 +11,13 @@ endif
 
 CC=g++
 
-all: test test_logging_restore generate
+all: test test_logging_restore generate test_checkpointing
 
-test: test.cpp betree.hpp swap_space.o backing_store.o
+test: test.cpp betree.hpp swap_space.o backing_store.o log_manager.hpp checkpoint_manager.o
 
 test_logging_restore: test_logging_restore.cpp betree.hpp swap_space.o backing_store.o
+
+test_checkpointing: test_checkpointing.cpp betree.hpp swap_space.o backing_store.o log_manager.hpp checkpoint_manager.o
 
 generate: generate.cpp
 
@@ -23,5 +25,7 @@ swap_space.o: swap_space.cpp swap_space.hpp backing_store.hpp
 
 backing_store.o: backing_store.hpp backing_store.cpp
 
+checkpoint_manager.o: checkpoint_manager.hpp checkpoint_manager.cpp
+
 clean:
-	$(RM) *.o test test_logging_restore generate
+	$(RM) *.o test test_logging_restore test_checkpointing generate

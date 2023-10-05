@@ -1,3 +1,6 @@
+#ifndef BETREE_HPP
+#define BETREE_HPP
+
 // A basic B^e-tree implementation templated on types Key and Value.
 // Keys and Values must be serializable (see swap_space.hpp).
 // Keys must be comparable (via operator< and operator==).
@@ -806,6 +809,19 @@ public:
     }
   }
 
+  void dump_to_disk(void){
+    ss->evict_all();
+  }
+
+  node_pointer get_root(void) {
+    return root;
+  }
+
+  bool id_needed(uint64_t id){
+    return ss->contains(id);
+  }
+
+
   class iterator
   {
   public:
@@ -930,3 +946,5 @@ public:
     return iterator(*this);
   }
 };
+
+#endif // BETREE_HPP

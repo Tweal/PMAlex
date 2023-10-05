@@ -114,26 +114,35 @@ void swap_space::write_back(swap_space::object *obj)
     out->write(buffer.data(), buffer.length());
     backstore->put(out);
 
+    // commented out so that file deletion is no longer automatic!
     //version 0 is the flag that the object exists only in memory.
-    if (obj->version > 0)
-      backstore->deallocate(obj->id, obj->version);
+    // if (obj->version > 0)
+    //   backstore->deallocate(obj->id, obj->version);
     obj->version = new_version_id;
     obj->target_is_dirty = false;
   }
 }
 
+void swap_space::maybe_evict_something(void)
+{
+  maybe_evict_something(max_in_memory_objects);
+}
+
+void swap_space::evict_all(void){
+  maybe_evict_something(0);
+}
 
 //attempt to evict an unused object from the swap space
 //objects in swap space are referenced in a priority queue
 //pull objects with low counts first to try and find an object with pincount 0.
-void swap_space::maybe_evict_something(void)
+void swap_space::maybe_evict_something(uint64_t max_keep)
 {
-  while (current_in_memory_objects > max_in_memory_objects) {
+  while (current_in_memory_objects > max_keep) {
     object *obj = NULL;
     for (auto it = lru_pqueue.begin(); it != lru_pqueue.end(); ++it)
       if ((*it)->pincount == 0) {
-	obj = *it;
-	break;
+        obj = *it;
+        break;
       }
     if (obj == NULL)
       return;
@@ -145,5 +154,9 @@ void swap_space::maybe_evict_something(void)
     obj->target = NULL;
     current_in_memory_objects--;
   }
+}
+
+bool swap_space::contains(uint64_t tgt){
+  return (objects.count(tgt) > 0);
 }
 

@@ -203,6 +203,11 @@ public:
       return (Referent *)ss->objects[target]->target;
     }
 
+    std::tuple<uint64_t, uint64_t> get_info(void)
+    {
+      return std::make_tuple(ss->objects[target]->id, ss->objects[target]->version);
+    }
+
     pin(const pointer<Referent> *p)
       : ss(NULL),
 	target(0)
@@ -318,6 +323,7 @@ public:
 	if (obj->target)
 	  delete obj->target;
 	ss->current_in_memory_objects--;
+  // THIS IS WHAT CLEANS UP WHEN DONE RUNNING DO NOT DELETE!
 	if (obj->version > 0)
 	  ss->backstore->deallocate(obj->id, obj->version);
 	delete obj;
@@ -397,6 +403,7 @@ public:
       // stays the same.
     }
 
+
   private:
     swap_space *ss;
     uint64_t target;
@@ -417,8 +424,10 @@ public:
       ss->current_in_memory_objects++;
       ss->maybe_evict_something();
     }
-
   };
+
+  void evict_all(void);
+  bool contains(uint64_t tgt);
   
 private:
   backing_store *backstore;  
@@ -466,6 +475,7 @@ private:
   
   void write_back(object *obj);
   void maybe_evict_something(void);
+  void maybe_evict_something(uint64_t max_keep);
   
   uint64_t max_in_memory_objects;
   uint64_t current_in_memory_objects = 0;
