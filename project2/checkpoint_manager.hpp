@@ -40,7 +40,10 @@ public:
         return *this;
     }
 
-    // overload obj++ operator. Note, this is not how you would normally do this but this isn't exactly a normal instance of obj++ anyway.
+    // Overload obj++ operator.
+    // Note, this is not how you would normally do
+    // the obj++ overload but this isn't exactly a
+    // normal usage of ++ anyway...
     CheckpointManager& operator++(int) {
         return operator++();
     }
@@ -132,6 +135,7 @@ public:
 
         std::cout << "Test Passed!" << std::endl << std::endl;
     }
+
 
 private:
     void createDummyFiles(void) {

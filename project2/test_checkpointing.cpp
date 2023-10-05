@@ -27,11 +27,6 @@ int main(int argc, char **argv){
 
     CheckpointManager cpm(logFile, testDir, b, lm);
 
-    std::pair<uint64_t, uint64_t> rootInfo(140, 1);
-    std::map<uint64_t, uint64_t> mapThing;
-    mapThing[140] = 1;
-    mapThing[4] = 1;
-
     CPTester tester(cpm);
     tester.runAllTests();
 
