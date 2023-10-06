@@ -13,6 +13,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "checkpoint_manager.hpp"
 
 // INCLUDE YOUR LOGGING FILE HERE
 #include "betree.hpp"
@@ -398,6 +399,12 @@ int main(int argc, char **argv) {
 
     swap_space sspace(&ofpobs, cache_size);
     betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
+
+
+    // std::string testDir = "testdir";
+    // std::string logFile = testDir + "/logfile.txt";
+    // LogManager log_manager(logFile);
+    // CheckpointManager checkpoint_manager(logFile, testDir, b, log_manager);
 
     /**
      * STUDENTS: INITIALIZE YOUR CLASS HERE
