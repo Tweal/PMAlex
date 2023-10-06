@@ -3,6 +3,7 @@
 #include <ext/stdio_filebuf.h>
 #include <unistd.h>
 #include <cassert>
+#include <dirent.h>
 
 /////////////////////////////////////////////////////////////
 // Implementation of the one_file_per_object_backing_store //
@@ -10,6 +11,29 @@
 one_file_per_object_backing_store::one_file_per_object_backing_store(std::string rt)
   : root(rt)
 {}
+
+one_file_per_object_backing_store::~one_file_per_object_backing_store() {
+  // Clear root
+  DIR* dir = opendir(root.c_str());
+
+  if (dir) {
+      struct dirent* entry;
+
+      while ((entry = readdir(dir))) {
+          std::string fileName = entry->d_name;
+
+          size_t underscorePos = fileName.find('_');
+          size_t dotPos = fileName.find('.');
+          
+          if (underscorePos != std::string::npos && dotPos == std::string::npos) {
+            unlink((root + "/" + fileName).c_str());
+          }
+      }
+      closedir(dir);
+  } 
+      
+}
+
 
 //allocate space for a new version of an object
 //requires that version be >> any previous version

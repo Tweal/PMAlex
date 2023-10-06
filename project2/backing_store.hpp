@@ -19,6 +19,7 @@ public:
 class one_file_per_object_backing_store: public backing_store {
 public:
   one_file_per_object_backing_store(std::string rt);
+  ~one_file_per_object_backing_store();
   void	  allocate(uint64_t obj_id, uint64_t version);
   void		  deallocate(uint64_t obj_id, uint64_t version);
   std::iostream * get(uint64_t obj_id, uint64_t version);

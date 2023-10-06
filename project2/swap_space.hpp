@@ -315,25 +315,26 @@ public:
       object *obj = ss->objects[target];
       assert(obj->refcount > 0);
       if ((--obj->refcount) == 0) {
-	debug(std::cout << "Erasing " << target << " id " << ss->objects[target]->id << " version " << ss->objects[target]->version << std::endl);
-	// Load it into memory so we can recursively free stuff
-	if (obj->target == NULL) {
-	  assert(obj->version > 0);
-	  if (!obj->is_leaf) {
-	    ss->load<Referent>(target);
-	  } else {
-	    debug(std::cout << "Skipping load of leaf " << target << " id " << ss->objects[target]->id << " version " << ss->objects[target]->version << std::endl);
-	  }
-	}
-	ss->objects.erase(target);
-	ss->lru_pqueue.erase(obj);
-	if (obj->target)
-	  delete obj->target;
-	ss->current_in_memory_objects--;
-  // THIS IS WHAT CLEANS UP WHEN DONE RUNNING DO NOT DELETE!
-	if (obj->version > 0)
-	  ss->backstore->deallocate(obj->id, obj->version);
-	delete obj;
+        debug(std::cout << "Erasing " << target << " id " << ss->objects[target]->id << " version " << ss->objects[target]->version << std::endl);
+        // Load it into memory so we can recursively free stuff
+        if (obj->target == NULL) {
+          assert(obj->version > 0);
+          if (!obj->is_leaf) {
+            ss->load<Referent>(target);
+          } else {
+            debug(std::cout << "Skipping load of leaf " << target << " id " << ss->objects[target]->id << " version " << ss->objects[target]->version << std::endl);
+          }
+        }
+        ss->objects.erase(target);
+        ss->lru_pqueue.erase(obj);
+        if (obj->target)
+          delete obj->target;
+        ss->current_in_memory_objects--;
+        // backing_store handles file cleanup at the end. This isnt' ideal but it works
+        // // THIS IS WHAT CLEANS UP WHEN DONE RUNNING DO NOT DELETE!
+        // if (obj->version > 0)
+        //   ss->backstore->deallocate(obj->id, obj->version);
+        delete obj;
       }
       target = 0;
     }

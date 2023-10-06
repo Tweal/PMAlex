@@ -21,7 +21,7 @@ CheckpointManager& CheckpointManager::operator++(int) {
 }
 
 bool CheckpointManager::createCheckpoint() {
-    debug(std::cout << "Checkpointing Started" << std::endl);
+    std::cout << "Checkpointing Started" << std::endl;
     // Flush Log
     lm->flushlog();
 
@@ -44,7 +44,7 @@ bool CheckpointManager::createCheckpoint() {
 
     // Close log
     logFile.close();
-    debug(std::cout << "Checkpoint Finished! " << std::endl);
+    std::cout << "Checkpoint Finished! " << std::endl;
     return true;
 }
 

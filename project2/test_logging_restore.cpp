@@ -159,7 +159,13 @@ int test(betree<uint64_t, std::string> &b, uint64_t nops,
         std::string value = std::to_string(t) + ":";
         std::string logLine = operation + " " + key + " " + value;
 
-        if (op != 3) { //If it's not a query
+        switch (op)
+        {
+        case 0: // insert
+            if (script_output)
+            {
+                fprintf(script_output, "Inserting %lu\n", t);
+
             logManager.addelement(logLine);
 
             if (logManager.getlogsize() > logManager.getloggranularity() - 1) // ready to persist to disk
@@ -169,9 +175,38 @@ int test(betree<uint64_t, std::string> &b, uint64_t nops,
             }
 
             checkpointManager++;
-        }
-        else { //QUERY
-           try
+            break;
+            }
+        case 1: // update
+            if (script_output)
+                fprintf(script_output, "Updating %lu\n", t);
+
+            logManager.addelement(logLine);
+
+            if (logManager.getlogsize() > logManager.getloggranularity() - 1) // ready to persist to disk
+            {
+                // flush the log and apply the proper changes to the tree
+                logManager.flushlog();
+            }
+
+            checkpointManager++;
+            break;
+        case 2: // delete
+            if (script_output)
+                fprintf(script_output, "Deleting %lu\n", t);
+
+            logManager.addelement(logLine);
+
+            if (logManager.getlogsize() > logManager.getloggranularity() - 1) // ready to persist to disk
+            {
+                // flush the log and apply the proper changes to the tree
+                logManager.flushlog();
+            }
+
+            checkpointManager++;
+            break;
+        case 3: // query
+            try
             {
                 std::string bval = b.query(t);
                 if (script_output)
@@ -183,45 +218,10 @@ int test(betree<uint64_t, std::string> &b, uint64_t nops,
                 if (script_output)
                     fprintf(script_output, "Query %lu -> DNE\n", t);
             }
+            break;
+        default:
+            abort();
         }
-
-        // switch (op)
-        // {
-        // case 0: // insert
-        //     if (script_output)
-        //     {
-        //         // printf("Printing insert op!\n");
-        //         fprintf(script_output, "Inserting %lu\n", t);
-        //     }
-        //     b.insert(t, std::to_string(t) + ":");
-        //     break;
-        // case 1: // update
-        //     if (script_output)
-        //         fprintf(script_output, "Updating %lu\n", t);
-        //     b.update(t, std::to_string(t) + ":");
-        //     break;
-        // case 2: // delete
-        //     if (script_output)
-        //         fprintf(script_output, "Deleting %lu\n", t);
-        //     b.erase(t);
-        //     break;
-        // case 3: // query
-        //     try
-        //     {
-        //         std::string bval = b.query(t);
-        //         if (script_output)
-        //             fprintf(script_output, "Query %lu -> %s\n", t,
-        //                     bval.c_str());
-        //     }
-        //     catch (std::out_of_range &e)
-        //     {
-        //         if (script_output)
-        //             fprintf(script_output, "Query %lu -> DNE\n", t);
-        //     }
-        //     break;
-        // default:
-        //     abort();
-        // }
     }
 
     std::cout << "Test PASSED" << std::endl;
