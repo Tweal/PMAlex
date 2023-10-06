@@ -41,7 +41,6 @@ private:
     std::string logFilePath;
     uint64_t logGranularity;
     betree<uint64_t, std::string> *b;
-    uint64_t logGranularity;
     std::vector<std::string> logList;
 };
 

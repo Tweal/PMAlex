@@ -49,7 +49,7 @@ void LogManager::flushlog()
         std::string v = index[2] + ":";
 
         //could be much better encapsulated but this is decently efficient
-        b.upsert(opcode, k, v); 
+        b->upsert(opcode, k, v); 
       }
 
       while(logList.size() > 0)
