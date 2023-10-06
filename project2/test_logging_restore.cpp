@@ -14,47 +14,62 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "checkpoint_manager.hpp"
+#include "log_manager.hpp"
 
 // INCLUDE YOUR LOGGING FILE HERE
 #include "betree.hpp"
 
-void timer_start(uint64_t &timer) {
+void timer_start(uint64_t &timer)
+{
     struct timeval t;
     assert(!gettimeofday(&t, NULL));
     timer -= 1000000 * t.tv_sec + t.tv_usec;
 }
 
-void timer_stop(uint64_t &timer) {
+void timer_stop(uint64_t &timer)
+{
     struct timeval t;
     assert(!gettimeofday(&t, NULL));
     timer += 1000000 * t.tv_sec + t.tv_usec;
 }
 
-int next_command(FILE *input, int *op, uint64_t *arg) {
+int next_command(FILE *input, int *op, uint64_t *arg)
+{
     int ret;
     char command[64];
 
     ret = fscanf(input, "%s %ld", command, arg);
     if (ret == EOF)
         return EOF;
-    else if (ret != 2) {
+    else if (ret != 2)
+    {
         fprintf(stderr, "Parse error\n");
         exit(3);
     }
 
-    if (strcmp(command, "Inserting") == 0) {
+    if (strcmp(command, "Inserting") == 0)
+    {
         *op = 0;
-    } else if (strcmp(command, "Updating") == 0) {
+    }
+    else if (strcmp(command, "Updating") == 0)
+    {
         *op = 1;
-    } else if (strcmp(command, "Deleting") == 0) {
+    }
+    else if (strcmp(command, "Deleting") == 0)
+    {
         *op = 2;
-    } else if (strcmp(command, "Query") == 0) {
+    }
+    else if (strcmp(command, "Query") == 0)
+    {
         *op = 3;
-        if (1 != fscanf(input, " -> %s", command)) {
+        if (1 != fscanf(input, " -> %s", command))
+        {
             fprintf(stderr, "Parse error\n");
             exit(3);
         }
-    } else {
+    }
+    else
+    {
         fprintf(stderr, "Unknown command: %s\n", command);
         exit(1);
     }
@@ -68,7 +83,8 @@ int next_command(FILE *input, int *op, uint64_t *arg) {
 #define DEFAULT_TEST_NDISTINCT_KEYS (1ULL << 10)
 #define DEFAULT_TEST_NOPS (1ULL << 12)
 
-void usage(char *name) {
+void usage(char *name)
+{
     std::cout
         << "Usage: " << name << " [OPTIONS]" << std::endl
         << "Tests the betree implementation" << std::endl
@@ -113,53 +129,79 @@ void usage(char *name) {
 
 int test(betree<uint64_t, std::string> &b, uint64_t nops,
          uint64_t number_of_distinct_keys, FILE *script_input,
-         FILE *script_output) {
-    for (unsigned int i = 0; i < nops; i++) {
+         FILE *script_output, LogManager logManager, CheckpointManager checkpointManager)
+{
+    for (unsigned int i = 0; i < nops; i++)
+    {
 
         printf("%u/%lu\n", i, nops);
         int op;
         uint64_t t;
-        if (script_input) {
+        if (script_input)
+        {
             int r = next_command(script_input, &op, &t);
+
             if (r == EOF)
                 exit(0);
             else if (r < 0)
                 exit(4);
-        } else {
+        }
+        else
+        {
             op = rand() % 4;
             t = rand() % number_of_distinct_keys;
         }
 
-        switch (op) {
-            case 0:  // insert
-                if (script_output){
-                    //printf("Printing insert op!\n");
-                    fprintf(script_output, "Inserting %lu\n", t);
-                } 
-                b.insert(t, std::to_string(t) + ":");
-                break;
-            case 1:  // update
-                if (script_output) fprintf(script_output, "Updating %lu\n", t);
-                b.update(t, std::to_string(t) + ":");
-                break;
-            case 2:  // delete
-                if (script_output) fprintf(script_output, "Deleting %lu\n", t);
-                b.erase(t);
-                break;
-            case 3:  // query
-                try {
-                    std::string bval = b.query(t);
-                    if (script_output)
-                        fprintf(script_output, "Query %lu -> %s\n", t,
-                                bval.c_str());
-                } catch (std::out_of_range & e) {
-                    if (script_output)
-                        fprintf(script_output, "Query %lu -> DNE\n", t);
-                }
-                break;
-            default:
-                abort();
+        std::string operation = std::to_string(op);
+        std::string key = std::to_string(t);
+        std::string value = std::to_string(t) + ":";
+        std::string logLine = operation + " " + key + " " + value + "\n";
+
+        logManager.addelement(logLine);
+
+        if (logManager.getlogsize() > logManager.getloggranularity() - 1) // ready to persist to disk
+        {
+            // flush the log and apply the proper changes to the tree
+            logManager.flushlog();
         }
+
+        // switch (op)
+        // {
+        // case 0: // insert
+        //     if (script_output)
+        //     {
+        //         // printf("Printing insert op!\n");
+        //         fprintf(script_output, "Inserting %lu\n", t);
+        //     }
+        //     b.insert(t, std::to_string(t) + ":");
+        //     break;
+        // case 1: // update
+        //     if (script_output)
+        //         fprintf(script_output, "Updating %lu\n", t);
+        //     b.update(t, std::to_string(t) + ":");
+        //     break;
+        // case 2: // delete
+        //     if (script_output)
+        //         fprintf(script_output, "Deleting %lu\n", t);
+        //     b.erase(t);
+        //     break;
+        // case 3: // query
+        //     try
+        //     {
+        //         std::string bval = b.query(t);
+        //         if (script_output)
+        //             fprintf(script_output, "Query %lu -> %s\n", t,
+        //                     bval.c_str());
+        //     }
+        //     catch (std::out_of_range &e)
+        //     {
+        //         if (script_output)
+        //             fprintf(script_output, "Query %lu -> DNE\n", t);
+        //     }
+        //     break;
+        // default:
+        //     abort();
+        // }
     }
 
     std::cout << "Test PASSED" << std::endl;
@@ -168,12 +210,15 @@ int test(betree<uint64_t, std::string> &b, uint64_t nops,
 }
 
 void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops,
-                       uint64_t number_of_distinct_keys, uint64_t random_seed) {
+                       uint64_t number_of_distinct_keys, uint64_t random_seed)
+{
     uint64_t overall_timer = 0;
-    for (uint64_t j = 0; j < 100; j++) {
+    for (uint64_t j = 0; j < 100; j++)
+    {
         uint64_t timer = 0;
         timer_start(timer);
-        for (uint64_t i = 0; i < nops / 100; i++) {
+        for (uint64_t i = 0; i < nops / 100; i++)
+        {
             uint64_t t = rand() % number_of_distinct_keys;
             b.update(t, std::to_string(t) + ":");
         }
@@ -185,10 +230,12 @@ void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops,
 }
 
 void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops,
-                       uint64_t number_of_distinct_keys, uint64_t random_seed) {
+                       uint64_t number_of_distinct_keys, uint64_t random_seed)
+{
     // Pre-load the tree with data
     srand(random_seed);
-    for (uint64_t i = 0; i < nops; i++) {
+    for (uint64_t i = 0; i < nops; i++)
+    {
         uint64_t t = rand() % number_of_distinct_keys;
         b.update(t, std::to_string(t) + ":");
     }
@@ -197,7 +244,8 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops,
     srand(random_seed);
     uint64_t overall_timer = 0;
     timer_start(overall_timer);
-    for (uint64_t i = 0; i < nops; i++) {
+    for (uint64_t i = 0; i < nops; i++)
+    {
         uint64_t t = rand() % number_of_distinct_keys;
         b.query(t);
     }
@@ -205,7 +253,8 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops,
     printf("# overall: %ld %ld\n", nops, overall_timer);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     char *mode = NULL;
     uint64_t max_node_size = DEFAULT_TEST_MAX_NODE_SIZE;
     uint64_t min_flush_size = DEFAULT_TEST_MIN_FLUSH_SIZE;
@@ -228,110 +277,122 @@ int main(int argc, char **argv) {
     // Argument parsing //
     //////////////////////
 
-    while ((opt = getopt(argc, argv, "m:d:N:f:C:o:k:t:s:i:p:c:")) != -1) {
-        switch (opt) {
-            case 'm':
-                mode = optarg;
-                break;
-            case 'd':
-                backing_store_dir = optarg;
-                break;
-            case 'N':
-                max_node_size = strtoull(optarg, &term, 10);
-                if (*term) {
-                    std::cerr << "Argument to -N must be an integer"
-                              << std::endl;
-                    usage(argv[0]);
-                    exit(1);
-                }
-                break;
-            case 'f':
-                min_flush_size = strtoull(optarg, &term, 10);
-                if (*term) {
-                    std::cerr << "Argument to -f must be an integer"
-                              << std::endl;
-                    usage(argv[0]);
-                    exit(1);
-                }
-                break;
-            case 'C':
-                cache_size = strtoull(optarg, &term, 10);
-                if (*term) {
-                    std::cerr << "Argument to -C must be an integer"
-                              << std::endl;
-                    usage(argv[0]);
-                    exit(1);
-                }
-                break;
-            case 'o':
-                script_outfile = optarg;
-                break;
-            case 'k':
-                number_of_distinct_keys = strtoull(optarg, &term, 10);
-                if (*term) {
-                    std::cerr << "Argument to -k must be an integer"
-                              << std::endl;
-                    usage(argv[0]);
-                    exit(1);
-                }
-                break;
-            case 't':
-                nops = strtoull(optarg, &term, 10);
-                if (*term) {
-                    std::cerr << "Argument to -t must be an integer"
-                              << std::endl;
-                    usage(argv[0]);
-                    exit(1);
-                }
-                break;
-            case 's':
-                random_seed = strtoull(optarg, &term, 10);
-                if (*term) {
-                    std::cerr << "Argument to -s must be an integer"
-                              << std::endl;
-                    usage(argv[0]);
-                    exit(1);
-                }
-                break;
-            case 'i':
-                script_infile = optarg;
-                break;
-            case 'p':
-                // persistence granularity
-                persistence_granularity = strtoull(optarg, &term, 10);
-                if (*term) {
-                    std::cerr << "Argument to -p must be an integer"
-                              << std::endl;
-                    usage(argv[0]);
-                    exit(1);
-                }
-                break;
-            case 'c':
-                // checkpoint granularity
-                checkpoint_granularity = strtoull(optarg, &term, 10);
-                if (*term) {
-                    std::cerr << "Argument to -c must be an integer"
-                              << std::endl;
-                    usage(argv[0]);
-                    exit(1);
-                }
-                break;
-            default:
-                std::cerr << "Unknown option '" << (char)opt << "'"
+    while ((opt = getopt(argc, argv, "m:d:N:f:C:o:k:t:s:i:p:c:")) != -1)
+    {
+        switch (opt)
+        {
+        case 'm':
+            mode = optarg;
+            break;
+        case 'd':
+            backing_store_dir = optarg;
+            break;
+        case 'N':
+            max_node_size = strtoull(optarg, &term, 10);
+            if (*term)
+            {
+                std::cerr << "Argument to -N must be an integer"
                           << std::endl;
                 usage(argv[0]);
                 exit(1);
+            }
+            break;
+        case 'f':
+            min_flush_size = strtoull(optarg, &term, 10);
+            if (*term)
+            {
+                std::cerr << "Argument to -f must be an integer"
+                          << std::endl;
+                usage(argv[0]);
+                exit(1);
+            }
+            break;
+        case 'C':
+            cache_size = strtoull(optarg, &term, 10);
+            if (*term)
+            {
+                std::cerr << "Argument to -C must be an integer"
+                          << std::endl;
+                usage(argv[0]);
+                exit(1);
+            }
+            break;
+        case 'o':
+            script_outfile = optarg;
+            break;
+        case 'k':
+            number_of_distinct_keys = strtoull(optarg, &term, 10);
+            if (*term)
+            {
+                std::cerr << "Argument to -k must be an integer"
+                          << std::endl;
+                usage(argv[0]);
+                exit(1);
+            }
+            break;
+        case 't':
+            nops = strtoull(optarg, &term, 10);
+            if (*term)
+            {
+                std::cerr << "Argument to -t must be an integer"
+                          << std::endl;
+                usage(argv[0]);
+                exit(1);
+            }
+            break;
+        case 's':
+            random_seed = strtoull(optarg, &term, 10);
+            if (*term)
+            {
+                std::cerr << "Argument to -s must be an integer"
+                          << std::endl;
+                usage(argv[0]);
+                exit(1);
+            }
+            break;
+        case 'i':
+            script_infile = optarg;
+            break;
+        case 'p':
+            // persistence granularity
+            persistence_granularity = strtoull(optarg, &term, 10);
+            if (*term)
+            {
+                std::cerr << "Argument to -p must be an integer"
+                          << std::endl;
+                usage(argv[0]);
+                exit(1);
+            }
+            break;
+        case 'c':
+            // checkpoint granularity
+            checkpoint_granularity = strtoull(optarg, &term, 10);
+            if (*term)
+            {
+                std::cerr << "Argument to -c must be an integer"
+                          << std::endl;
+                usage(argv[0]);
+                exit(1);
+            }
+            break;
+        default:
+            std::cerr << "Unknown option '" << (char)opt << "'"
+                      << std::endl;
+            usage(argv[0]);
+            exit(1);
         }
     }
 
     // CHECK REQUIRED PARAMETERS
-    if (persistence_granularity == UINT64_MAX) {
+    if (persistence_granularity == UINT64_MAX)
+    {
         std::cerr << "ERROR: Persistence granularity was not assigned through "
                      "-p! This is a requirement!";
         usage(argv[0]);
         exit(1);
     }
-    if (checkpoint_granularity == UINT64_MAX) {
+    if (checkpoint_granularity == UINT64_MAX)
+    {
         std::cerr << "ERROR: Checkpoint granularity was not assigned through "
                      "-c! This is a requirement!";
         usage(argv[0]);
@@ -343,21 +404,25 @@ int main(int argc, char **argv) {
 
     if (mode == NULL ||
         (strcmp(mode, "test") != 0 && strcmp(mode, "benchmark-upserts") != 0 &&
-         strcmp(mode, "benchmark-queries") != 0)) {
+         strcmp(mode, "benchmark-queries") != 0))
+    {
         std::cerr << "Must specify a mode of \"test\" or \"benchmark\""
                   << std::endl;
         usage(argv[0]);
         exit(1);
     }
 
-    if (strncmp(mode, "benchmark", strlen("benchmark")) == 0) {
-        if (script_infile) {
+    if (strncmp(mode, "benchmark", strlen("benchmark")) == 0)
+    {
+        if (script_infile)
+        {
             std::cerr << "Cannot specify an input script in benchmark mode"
                       << std::endl;
             usage(argv[0]);
             exit(1);
         }
-        if (script_outfile) {
+        if (script_outfile)
+        {
             std::cerr << "Cannot specify an output script in benchmark mode"
                       << std::endl;
             usage(argv[0]);
@@ -365,17 +430,21 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (script_infile) {
+    if (script_infile)
+    {
         script_input = fopen(script_infile, "r");
-        if (script_input == NULL) {
+        if (script_input == NULL)
+        {
             perror("Couldn't open input file");
             exit(1);
         }
     }
 
-    if (script_outfile) {
+    if (script_outfile)
+    {
         script_output = fopen(script_outfile, "w");
-        if (script_output == NULL) {
+        if (script_output == NULL)
+        {
             perror("Couldn't open output file");
             exit(1);
         }
@@ -383,7 +452,8 @@ int main(int argc, char **argv) {
 
     srand(random_seed);
 
-    if (backing_store_dir == NULL) {
+    if (backing_store_dir == NULL)
+    {
         std::cerr << "-d <backing_store_directory> is required" << std::endl;
         usage(argv[0]);
         exit(1);
@@ -395,16 +465,15 @@ int main(int argc, char **argv) {
 
     one_file_per_object_backing_store ofpobs(backing_store_dir);
 
-    //ofpobs.reset_ids();
+    // ofpobs.reset_ids();
 
     swap_space sspace(&ofpobs, cache_size);
     betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
 
-
-    // std::string testDir = "testdir";
-    // std::string logFile = testDir + "/logfile.txt";
-    // LogManager log_manager(logFile);
-    // CheckpointManager checkpoint_manager(logFile, testDir, b, log_manager);
+    std::string testDir = "testdir";
+    std::string logFile = testDir + "/logfile.txt";
+    LogManager logManager(logFile, 10, b);
+    CheckpointManager checkpointManager(logFile, testDir, b, logManager);
 
     /**
      * STUDENTS: INITIALIZE YOUR CLASS HERE
@@ -421,23 +490,26 @@ int main(int argc, char **argv) {
      */
 
     if (strcmp(mode, "test") == 0)
-        test(b, nops, number_of_distinct_keys, script_input, script_output);
-    else if (strcmp(mode, "benchmark-upserts") == 0) {
+        test(b, nops, number_of_distinct_keys, script_input, script_output, logManager, checkpointManager);
+    else if (strcmp(mode, "benchmark-upserts") == 0)
+    {
         std::cerr << "benchmark-upserts is not available for this testing program!" << std::endl;
         return 0;
         // benchmark_upserts(b, nops, number_of_distinct_keys, random_seed);
     }
-        
-    else if (strcmp(mode, "benchmark-queries") == 0) {
+
+    else if (strcmp(mode, "benchmark-queries") == 0)
+    {
         std::cerr << "benchmark-queries is not available for this testing program!" << std::endl;
         return 0;
         // benchmark_queries(b, nops, number_of_distinct_keys, random_seed);
     }
-        
 
-    if (script_input) fclose(script_input);
+    if (script_input)
+        fclose(script_input);
 
-    if (script_output) fclose(script_output);
+    if (script_output)
+        fclose(script_output);
 
     return 0;
 }

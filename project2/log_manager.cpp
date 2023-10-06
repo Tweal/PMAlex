@@ -15,7 +15,7 @@ void LogManager::flushlog()
       std::ofstream myfile;
       myfile.open("logfile.txt", std::ios_base::app); 
 
-      for(int i = 0; i < logGranularity; i++)
+      for(uint64_t i = 0; i < logGranularity; i++)
       {
         std::string oldrequest = logList[i];
         myfile << oldrequest;
@@ -23,7 +23,7 @@ void LogManager::flushlog()
 
       myfile.close();
 
-      for(int i = 0; i < logGranularity; i++)
+      for(uint64_t i = 0; i < logGranularity; i++)
       {
 
         std::string newrequest = logList[i];
@@ -49,7 +49,7 @@ void LogManager::flushlog()
         std::string v = index[2] + ":";
 
         //could be much better encapsulated but this is decently efficient
-        b.changetree(opcode, k, v); 
+        b.upsert(opcode, k, v); 
       }
 
       while(logList.size() > 0)

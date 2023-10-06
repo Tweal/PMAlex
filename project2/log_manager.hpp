@@ -3,7 +3,21 @@
 #ifndef LOG_MANAGER_HPP
 #define LOG_MANAGER_HPP
 
+#include <iostream>
+#include <sstream>
+#include <fstream>
 #include <string>
+#include <cassert>
+#include <tuple>
+#include <vector>
+#include <limits>
+#include <map>
+#include <algorithm>
+#include <dirent.h>
+#include <sys/types.h>
+#include "betree.hpp"
+#include "log_manager.hpp"
+#include "debug.hpp"
 
 class LogManager {
 public:
@@ -17,14 +31,14 @@ public:
     void flushlog(void);
     void addelement(std::string log);
     void popback(void);
-    std::string getlog(uint64_t  i);
+    std::string getlog(uint64_t i);
     uint64_t  getlogsize(void);
     uint64_t  getloggranularity(void);
 
 private:
     std::string logFilePath;
-    betree<uint64_t, std::string> b;
     uint64_t logGranularity;
+    betree<uint64_t, std::string> b;
     std::vector<std::string> logList;
 };
 
