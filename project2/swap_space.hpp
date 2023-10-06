@@ -421,7 +421,6 @@ public:
     {
       ss = sspace;
       target = sspace->next_id++;
-
       object *o = new object(sspace, tgt);
       assert(o != NULL);
       target = o->id;
@@ -451,7 +450,10 @@ public:
       assert(o->target == NULL);
       assert(objects.count(o->id) == 0);
       objects[o->id] = o;
+  }
 
+  void set_next_id(int new_id) {
+    next_id = new_id;
   }
 
   void evict_all(void);

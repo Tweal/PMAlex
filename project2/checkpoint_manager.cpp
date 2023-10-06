@@ -1,7 +1,27 @@
 #include "checkpoint_manager.hpp"
 
+void CheckpointManager::increment() {
+    ++counter;
+    if (counter % granularity == 0)
+        createCheckpoint();
+}
+
+// Overload ++obj operator
+CheckpointManager& CheckpointManager::operator++() {
+    increment();
+    return *this;
+}
+
+// Overload obj++ operator.
+// Note, this is not how you would normally do
+// the obj++ overload but this isn't exactly a
+// normal usage of ++ anyway...
+CheckpointManager& CheckpointManager::operator++(int) {
+    return operator++();
+}
+
 bool CheckpointManager::createCheckpoint() {
-    std::cout << "Checkpointing Started" << std::endl;
+    debug(std::cout << "Checkpointing Started" << std::endl);
     // Flush Log
     lm->flushlog();
 
@@ -24,7 +44,7 @@ bool CheckpointManager::createCheckpoint() {
 
     // Close log
     logFile.close();
-    std::cout << "Checkpoint Finished! " << std::endl;
+    debug(std::cout << "Checkpoint Finished! " << std::endl);
     return true;
 }
 
@@ -97,9 +117,9 @@ std::vector<FileInfo> CheckpointManager::getFiles() {
             size_t underscorePos = fileName.find('_');
             size_t dotPos = fileName.find('.');
             
-            if (underscorePos != std::string::npos && dotPos != std::string::npos) {
+            if (underscorePos != std::string::npos && dotPos == std::string::npos) {
                 std::string idStr = fileName.substr(0, underscorePos);
-                std::string versionStr = fileName.substr(underscorePos + 1, dotPos - underscorePos - 1);
+                std::string versionStr = fileName.substr(underscorePos + 1);
 
                 try {
                     uint64_t id = std::stoull(idStr);
@@ -130,6 +150,13 @@ std::map<uint64_t, uint64_t> CheckpointManager::getIdVersionMap(bool getOldest) 
     });
 
     std::map<uint64_t, uint64_t> idVersionMap;
+    // Need to init map with max value if looking for oldest, min value if lookign for newest
+    for (const FileInfo &file: files) {
+        idVersionMap[file.id] = getOldest ?
+                                    std::numeric_limits<uint64_t>::max() :
+                                    std::numeric_limits<uint64_t>::min();
+    }
+
     // Find the correct version for each id
     for (const FileInfo& file: files) {
         if (getOldest ?

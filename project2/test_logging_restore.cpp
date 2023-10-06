@@ -13,8 +13,10 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
 #include "checkpoint_manager.hpp"
 #include "log_manager.hpp"
+#include "recovery_manager.hpp"
 
 // INCLUDE YOUR LOGGING FILE HERE
 #include "betree.hpp"
@@ -155,14 +157,32 @@ int test(betree<uint64_t, std::string> &b, uint64_t nops,
         std::string operation = std::to_string(op);
         std::string key = std::to_string(t);
         std::string value = std::to_string(t) + ":";
-        std::string logLine = operation + " " + key + " " + value + "\n";
+        std::string logLine = operation + " " + key + " " + value;
 
-        logManager.addelement(logLine);
+        if (op != 3) { //If it's not a query
+            logManager.addelement(logLine);
 
-        if (logManager.getlogsize() > logManager.getloggranularity() - 1) // ready to persist to disk
-        {
-            // flush the log and apply the proper changes to the tree
-            logManager.flushlog();
+            if (logManager.getlogsize() > logManager.getloggranularity() - 1) // ready to persist to disk
+            {
+                // flush the log and apply the proper changes to the tree
+                logManager.flushlog();
+            }
+
+            checkpointManager++;
+        }
+        else { //QUERY
+           try
+            {
+                std::string bval = b.query(t);
+                if (script_output)
+                    fprintf(script_output, "Query %lu -> %s\n", t,
+                            bval.c_str());
+            }
+            catch (std::out_of_range &e)
+            {
+                if (script_output)
+                    fprintf(script_output, "Query %lu -> DNE\n", t);
+            }
         }
 
         // switch (op)
@@ -470,10 +490,13 @@ int main(int argc, char **argv)
     swap_space sspace(&ofpobs, cache_size);
     betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
 
-    std::string testDir = "testdir";
-    std::string logFile = testDir + "/logfile.txt";
-    LogManager logManager(logFile, &b);
-    CheckpointManager checkpointManager(logFile, testDir, &b, &logManager);
+    std::string bsDir = std::string(backing_store_dir);
+    std::string logFile = bsDir + "/logfile.txt";
+    LogManager logManager(logFile, &b, persistence_granularity);
+    CheckpointManager checkpointManager(logFile, bsDir, &b, &logManager, checkpoint_granularity);
+    RecoveryManager recoveryManager(logFile, &b, &logManager, &checkpointManager);
+
+    recoveryManager.recover();
 
     /**
      * STUDENTS: INITIALIZE YOUR CLASS HERE

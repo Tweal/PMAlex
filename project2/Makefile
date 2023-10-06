@@ -15,7 +15,7 @@ all: test test_logging_restore generate test_checkpointing
 
 test: test.cpp betree.hpp swap_space.o backing_store.o log_manager.hpp checkpoint_manager.o
 
-test_logging_restore: test_logging_restore.cpp betree.hpp swap_space.o backing_store.o log_manager.o
+test_logging_restore: test_logging_restore.cpp betree.hpp swap_space.o backing_store.o log_manager.o checkpoint_manager.o recovery_manager.o
 
 unit_tests: unit_tests.cpp betree.hpp swap_space.o backing_store.o log_manager.o checkpoint_manager.o recovery_manager.o
 

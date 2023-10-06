@@ -35,19 +35,8 @@ public:
         granularity(granularity)
     {}
 
-    // Overload ++obj operator
-    CheckpointManager& operator++() {
-        increment();
-        return *this;
-    }
-
-    // Overload obj++ operator.
-    // Note, this is not how you would normally do
-    // the obj++ overload but this isn't exactly a
-    // normal usage of ++ anyway...
-    CheckpointManager& operator++(int) {
-        return operator++();
-    }
+    CheckpointManager& operator++();
+    CheckpointManager& operator++(int);
 
     // Method to create a checkpoint of the current system state.
     bool createCheckpoint(void);
@@ -60,12 +49,7 @@ private:
     std::vector<FileInfo> getFiles(void);
     std::map<uint64_t, uint64_t> getIdVersionMap(bool getOldest);
     std::tuple<uint64_t, uint64_t, bool> parseCheckpointString(std::string checkpointStr);
-
-    void increment(void){
-        ++counter;
-        if (counter % granularity == 0)
-            createCheckpoint();
-    }
+    void increment(void);
 
     std::string logFilePath;
     std::string bsDir;

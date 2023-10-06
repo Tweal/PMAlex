@@ -757,6 +757,7 @@ public:
   void restore(std::pair<uint64_t, uint64_t> rootInfo, std::map<uint64_t, uint64_t> idVMap) {
     root = ss->allocate<node>(rootInfo.first, rootInfo.second);
 
+    uint64_t maxId = -1;
     // Loop through the id and versions and restore them in the SS
     // If I'm understanding this correct we don't need to store it
     for (const std::pair<uint64_t, uint64_t>&  p : idVMap) {
@@ -764,7 +765,14 @@ public:
       if (p != rootInfo) {
         ss->restore(p.first, p.second);
       }
+
+      // track highest id for handling after for loop
+      if (p.first > maxId)
+        maxId = p.first;
     }
+
+    // We need to make sure that ss->next_id is higher than all ids we just loaded
+    ss->set_next_id(maxId +1);
   }
 
   // Insert the specified message and handle a split of the root if it
