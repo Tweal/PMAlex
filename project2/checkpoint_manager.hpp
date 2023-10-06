@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <dirent.h>
 #include <sys/types.h>
+
 #include "betree.hpp"
 #include "log_manager.hpp"
 #include "debug.hpp"
@@ -26,7 +27,7 @@ struct FileInfo {
 
 class CheckpointManager {
 public:
-    CheckpointManager(std::string logFilePath, std::string bsDir, betree<uint64_t, std::string> b, LogManager logManager, uint64_t granularity = 10) :
+    CheckpointManager(std::string logFilePath, std::string bsDir, betree<uint64_t, std::string> *b, LogManager *logManager, uint64_t granularity = 10) :
         logFilePath(logFilePath),
         bsDir(bsDir),
         b(b),
@@ -68,8 +69,8 @@ private:
 
     std::string logFilePath;
     std::string bsDir;
-    betree<uint64_t, std::string> b;
-    LogManager lm;
+    betree<uint64_t, std::string> *b;
+    LogManager *lm;
     uint64_t granularity;
     uint64_t counter = 0;
     
@@ -78,7 +79,7 @@ friend class CPTester;
 
 class CPTester {
 public:
-    CPTester(CheckpointManager cpm) :
+    CPTester(CheckpointManager *cpm) :
         cpm(cpm)
     {} 
 
@@ -94,19 +95,19 @@ public:
         createDummyFiles();
 
         // Now hopefully those files get deleted!
-        cpm.deleteOldVersions(false);
+        cpm->deleteOldVersions(false);
         
         // Verify that there's only one file for each id and they all match the id as that's the highest version
         assert(verifyDir());
 
         // Clean up the directory
-        DIR* dir = opendir(cpm.bsDir.c_str());
+        DIR* dir = opendir(cpm->bsDir.c_str());
 
         struct dirent* entry;
         while ((entry = readdir(dir))) {
             std::string filename = entry->d_name;
             if (filename.find("_") != std::string::npos) {
-                remove((cpm.bsDir + "/" + filename).c_str());
+                remove((cpm->bsDir + "/" + filename).c_str());
             }                
         }
         closedir(dir);
@@ -121,7 +122,7 @@ public:
         uint64_t version = 2;
         std::string cpStr = "CHECKPOINT rootID:" + std::to_string(id) + " rootVersion:" + std::to_string(version);
         std::cout << "  Testing with input: <" << cpStr << ">" << std::endl;
-        auto parsedStr = cpm.parseCheckpointString(cpStr);
+        auto parsedStr = cpm->parseCheckpointString(cpStr);
         assert(std::get<0>(parsedStr) == id);
         assert(std::get<1>(parsedStr) == version);
         assert(std::get<2>(parsedStr) == false);
@@ -129,7 +130,7 @@ public:
 
         cpStr += " ... COMPLETE";
         std::cout << "  Testing with input: <" << cpStr << ">" <<  std::endl;
-        parsedStr = cpm.parseCheckpointString(cpStr);
+        parsedStr = cpm->parseCheckpointString(cpStr);
         assert(std::get<2>(parsedStr) == true);
         std::cout << "  Case passed!" << std::endl;
 
@@ -145,7 +146,7 @@ private:
 
             for (int version = 1; version <= numVersions; version++) {
                 std::ostringstream filename;
-                filename << cpm.bsDir << "/" << id << "_" << version << ".txt";
+                filename << cpm->bsDir << "/" << id << "_" << version << ".txt";
 
                 std::ofstream file(filename.str());
 
@@ -161,7 +162,7 @@ private:
     bool verifyDir(void) {
         // Get actual file names
         std::vector<std::string> actualFilenames;
-        DIR* dir = opendir(cpm.bsDir.c_str());
+        DIR* dir = opendir(cpm->bsDir.c_str());
 
         struct dirent* entry;
         while ((entry = readdir(dir))) {
@@ -186,7 +187,7 @@ private:
         return actualFilenames == expectedFilenames;
     }
 
-    CheckpointManager cpm;
+    CheckpointManager *cpm;
 };
 
 #endif // CHECKPOINT_MANAGER_HPP

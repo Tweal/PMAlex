@@ -21,7 +21,7 @@
 
 class LogManager {
 public:
-    LogManager(const std::string logFilePath, betree<uint64_t, std::string> b, uint64_t logGranularity = 10) :
+    LogManager(const std::string logFilePath, betree<uint64_t, std::string> *b, uint64_t logGranularity = 10) :
       logFilePath(logFilePath),
       logGranularity(logGranularity),
       b(b)  
@@ -40,7 +40,8 @@ public:
 private:
     std::string logFilePath;
     uint64_t logGranularity;
-    betree<uint64_t, std::string> b;
+    betree<uint64_t, std::string> *b;
+    uint64_t logGranularity;
     std::vector<std::string> logList;
 };
 

@@ -23,11 +23,11 @@ int main(int argc, char **argv){
     swap_space sspace(&ofpobs, cache_size);
     betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
 
-    LogManager lm(logFile, b);
+    LogManager lm(logFile, &b);
 
-    CheckpointManager cpm(logFile, testDir, b, lm);
+    CheckpointManager cpm(logFile, testDir, &b, &lm);
 
-    CPTester tester(cpm);
+    CPTester tester(&cpm);
     tester.runAllTests();
 
 }

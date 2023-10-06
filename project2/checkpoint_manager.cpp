@@ -3,14 +3,14 @@
 bool CheckpointManager::createCheckpoint() {
     std::cout << "Checkpointing Started" << std::endl;
     // Flush Log
-    lm.flushlog();
+    lm->flushlog();
 
     // Push all objects to disk
-    b.dump_to_disk();
+    b->dump_to_disk();
 
     // Write Checkpoint start to log, include root info.
     std::ofstream logFile(logFilePath, std::ios::out | std::ios::trunc);
-    auto rootInfo = b.get_root().get_pin().get_info();
+    auto rootInfo = b->get_root().get_pin().get_info();
     uint64_t rootID = std::get<0>(rootInfo);
     uint64_t rootVersion = std::get<1>(rootInfo);
     logFile << "CHECKPOINT rootID:" << rootID << " rootVersion:" << rootVersion << " ... ";
@@ -39,7 +39,7 @@ bool CheckpointManager::deleteOldVersions(bool checkIfNeeded){
     for (const FileInfo& file : files) {
         // We will need to delete files if the version is not the highest or if the id is no longer needed. The second case would be if that node was deleted
         if (file.version < newestVersions[file.id] ||
-            (!b.id_needed(file.id) && checkIfNeeded)) {
+            (!b->id_needed(file.id) && checkIfNeeded)) {
             std::string filePath = bsDir + "/" + file.fileName;
             if(remove(filePath.c_str()) != 0){
                 std::cerr << "Error deleting file: " << file.fileName << std::endl;
@@ -79,7 +79,7 @@ bool CheckpointManager::restoreFromCheckpoint(std::string checkpointStr) {
     std::map<uint64_t, uint64_t> idVersionMap = getIdVersionMap(true);
 
     // And now we can restore from this root with this info
-    b.restore(std::make_pair(rootID, rootVersion), idVersionMap);
+    b->restore(std::make_pair(rootID, rootVersion), idVersionMap);
 
     return true;
 }
