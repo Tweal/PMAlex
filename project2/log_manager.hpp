@@ -21,13 +21,13 @@
 
 class LogManager {
 public:
-    LogManager(const std::string logFilePath, betree<uint64_t, std::string> *b, uint64_t logGranularity = 10) :
+    LogManager(std::string logFilePath, betree<uint64_t, std::string> *b, uint64_t logGranularity = 10) :
       logFilePath(logFilePath),
       logGranularity(logGranularity),
       b(b)  
     {}
 
-    void writeToLog(const std::string transaction);
+    void writeToLog(std::string transaction);
     void flushlog(void);
     void addelement(std::string log);
     void popback(void);

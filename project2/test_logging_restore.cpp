@@ -472,8 +472,8 @@ int main(int argc, char **argv)
 
     std::string testDir = "testdir";
     std::string logFile = testDir + "/logfile.txt";
-    LogManager logManager(logFile, 10, b);
-    CheckpointManager checkpointManager(logFile, testDir, b, logManager);
+    LogManager logManager(logFile, &b);
+    CheckpointManager checkpointManager(logFile, testDir, &b, &logManager);
 
     /**
      * STUDENTS: INITIALIZE YOUR CLASS HERE
