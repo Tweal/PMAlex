@@ -31,7 +31,7 @@ public:
     void flushlog(void);
     void addelement(std::string log);
     void popback(void);
-    void executeLogLine(std::string line);
+    void executeLogLine(std::string line); //TODO: THIS!
 
     std::string getlog(uint64_t  i);
     uint64_t  getlogsize(void);
