@@ -23,7 +23,7 @@ int main(int argc, char **argv){
     swap_space sspace(&ofpobs, cache_size);
     betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
 
-    LogManager lm(logFile);
+    LogManager lm(logFile, b);
 
     CheckpointManager cpm(logFile, testDir, b, lm);
 

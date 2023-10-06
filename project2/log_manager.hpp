@@ -21,7 +21,7 @@
 
 class LogManager {
 public:
-    LogManager(const std::string logFilePath, uint64_t logGranularity, betree<uint64_t, std::string> b) :
+    LogManager(const std::string logFilePath, betree<uint64_t, std::string> b, uint64_t logGranularity = 10) :
       logFilePath(logFilePath),
       logGranularity(logGranularity),
       b(b)  
@@ -31,7 +31,9 @@ public:
     void flushlog(void);
     void addelement(std::string log);
     void popback(void);
-    std::string getlog(uint64_t i);
+    void executeLogLine(std::string line);
+
+    std::string getlog(uint64_t  i);
     uint64_t  getlogsize(void);
     uint64_t  getloggranularity(void);
 
