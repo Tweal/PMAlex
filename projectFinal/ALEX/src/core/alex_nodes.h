@@ -11,6 +11,8 @@
 #pragma once
 
 #include "alex_base.h"
+#include "PMA.hpp"
+
 
 // Whether we store key and payload arrays separately in data nodes
 // By default, we store them separately
@@ -290,10 +292,10 @@ class AlexModelNode : public AlexNode<T, P> {
 template <class T, class P, class Compare = AlexCompare,
           class Alloc = std::allocator<std::pair<T, P>>,
           bool allow_duplicates = true>
-class AlexDataNode : public AlexNode<T, P> {
+class AlexDataNode_Old : public AlexNode<T, P> {
  public:
   typedef std::pair<T, P> V;
-  typedef AlexDataNode<T, P, Compare, Alloc, allow_duplicates> self_type;
+  typedef AlexDataNode_Old<T, P, Compare, Alloc, allow_duplicates> self_type;
   typedef typename Alloc::template rebind<self_type>::other alloc_type;
   typedef typename Alloc::template rebind<T>::other key_alloc_type;
   typedef typename Alloc::template rebind<P>::other payload_alloc_type;
@@ -379,18 +381,18 @@ class AlexDataNode : public AlexNode<T, P> {
 
   /*** Constructors and destructors ***/
 
-  explicit AlexDataNode(const Compare& comp = Compare(),
+  explicit AlexDataNode_Old(const Compare& comp = Compare(),
                         const Alloc& alloc = Alloc())
       : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {}
 
-  AlexDataNode(short level, int max_data_node_slots,
+  AlexDataNode_Old(short level, int max_data_node_slots,
                const Compare& comp = Compare(), const Alloc& alloc = Alloc())
       : AlexNode<T, P>(level, true),
         key_less_(comp),
         allocator_(alloc),
         max_slots_(max_data_node_slots) {}
 
-  ~AlexDataNode() {
+  ~AlexDataNode_Old() {
 #if ALEX_DATA_NODE_SEP_ARRAYS
     if (key_slots_ == nullptr) {
       return;
@@ -406,7 +408,7 @@ class AlexDataNode : public AlexNode<T, P> {
     bitmap_allocator().deallocate(bitmap_, bitmap_size_);
   }
 
-  AlexDataNode(const self_type& other)
+  AlexDataNode_Old(const self_type& other)
       : AlexNode<T, P>(other),
         key_less_(other.key_less_),
         allocator_(other.allocator_),
@@ -2326,4 +2328,61 @@ class AlexDataNode : public AlexNode<T, P> {
     return str;
   }
 };
+
+
+template <class T, class P, class Compare = AlexCompare,
+          class Alloc = std::allocator<std::pair<T, P>>,
+          bool allow_duplicates = true>
+class AlexDataNode : public AlexNode<T, P> {
+ public:
+  typedef std::pair<T, P> V;
+  typedef AlexDataNode<T, P, Compare, Alloc, allow_duplicates> self_type;
+  typedef typename Alloc::template rebind<self_type>::other alloc_type;
+
+  const Compare& key_less_;
+  const Alloc& allocator_;
+
+  // Forward declaration
+  template <typename node_type = self_type, typename payload_return_type = P,
+            typename value_return_type = V>
+  class Iterator;
+  typedef Iterator<> iterator_type;
+  typedef Iterator<const self_type, const P, const V> const_iterator_type;
+
+  self_type* next_leaf_ = nullptr;
+  self_type* prev_leaf_ = nullptr;
+
+  PMA pma = PMA(1);
+
+  /*** Constructors and Destructors ***/
+  explicit AlexDataNode(const Compare& comp = Compare(),
+                        const Alloc& alloc = Alloc())
+      : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {}
+
+  AlexDataNode(short level,
+               const Compare& comp = Compare(), const Alloc& alloc = Alloc())
+      : AlexNode<T, P>(level, true),
+        key_less_(comp),
+        allocator_(alloc){}
+
+  /*** Bulk loading and model building***/
+  void bulk_load(const V values[], int num_keys,
+                 const LinearModel<T>* pretrained_model = nullptr,
+                 bool train_with_sample = false) {
+    if (num_keys == 0)
+      return;
+
+    // Build model
+    if (pretrained_model != nullptr) {
+      this->model_.a_ = pretrained_model->a_;
+      this->model_.b_ = pretrained_model->b_;
+    } else {
+      build_model(values, num_keys, &(this->model_), train_with_sample);
+    }
+    this->model_.expand(static_cast<double>(data_capacity_) / num_keys);
+
+  }
+  
+  
+  };
 }

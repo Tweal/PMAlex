@@ -27,7 +27,7 @@
 
 typedef struct _edge {
   uint32_t value; // length in array
-  uint32_t dest;
+  std::pair<uint32_t, uint32_t> dest;
 } edge_t;
 
 typedef struct _pair_double {
@@ -69,7 +69,7 @@ typedef struct edge_list {
   uint32_t loglogN;
   uint32_t mask_for_leaf;
   uint32_t * vals;
-  uint32_t * dests;
+  std::pair<uint32_t, uint32_t> * dests;
 
   // Lock list_lock;
 
@@ -97,25 +97,25 @@ public:
   void double_list(uint64_t task_id, std::vector<uint_t> &sub_counts, uint_t num_elements);
   void half_list(uint64_t task_id, std::vector<uint_t> &sub_counts, uint_t num_elements);
   //void half_list();
-  void slide_right(uint_t index, uint32_t *vals, uint32_t *dests);
-  void slide_left(uint_t index, uint32_t *vals, uint32_t *dests);
+  void slide_right(uint_t index, uint32_t *vals, std::pair<uint32_t, uint32_t> *dests);
+  void slide_left(uint_t index, uint32_t *vals, std::pair<uint32_t, uint32_t> *dests);
   void redistribute(uint_t index, uint64_t len);
   void redistribute_par(uint_t index, uint64_t len, std::vector<uint_t> &sub_counts, uint_t num_elements, bool for_double = false);
   uint_t fix_sentinel(uint32_t node_index, uint_t in);
   void print_array(uint64_t worker_num = 0);
-  uint32_t find_value(uint32_t src, uint32_t dest);
+  uint32_t find_value(uint32_t src, std::pair<uint32_t, uint32_t> dest);
   void print_graph();
   void add_node();
 
   //assumes the edge is not already in the graph
-  void add_edge(uint32_t src, uint32_t dest, uint32_t value);
-  bool add_edge_update(uint32_t src, uint32_t dest, uint32_t value);
+  void add_edge(uint32_t src, std::pair<uint32_t, uint32_t> dest, uint32_t value);
+  bool add_edge_update(uint32_t src, std::pair<uint32_t, uint32_t> dest, uint32_t value);
 
 
-  bool add_edge_update_fast(uint32_t src, uint32_t dest, uint32_t value, uint64_t task_id);
+  bool add_edge_update_fast(uint32_t src, std::pair<uint32_t, uint32_t> dest, uint32_t value, uint64_t task_id);
   
-  void add_edge_batch_update(uint32_t *srcs, uint32_t *dests, uint32_t *values, uint_t edge_count);
-  void add_edge_batch_update_no_val(uint32_t *srcs, uint32_t *dests, uint_t edge_count);
+  void add_edge_batch_update(uint32_t *srcs, std::pair<uint32_t, uint32_t> *dests, uint32_t *values, uint_t edge_count);
+  void add_edge_batch_update_no_val(uint32_t *srcs, std::pair<uint32_t, uint32_t> *dests, uint_t edge_count);
 
   // merge functions in original PMA with no val
   void add_edge_batch_update_no_val_parallel(pair_uint *es, uint64_t edge_count);
@@ -123,24 +123,24 @@ public:
   void remove_edge_batch_update_no_val_parallel(pair_uint *es, uint64_t edge_count);
   void remove_edge_batch_wrapper(pair_uint *es, uint64_t edge_count, int64_t threshold = -1);
 
-  bool remove_edge(uint32_t src, uint32_t dest);
-  void remove_edge_fast(uint32_t src, uint32_t dest, uint64_t task_id);
-  void remove_edge_batch(uint32_t *srcs, uint32_t *dests, uint_t edge_count);
+  bool remove_edge(uint32_t src, std::pair<uint32_t, uint32_t> dest);
+  void remove_edge_fast(uint32_t src, std::pair<uint32_t, uint32_t> dest, uint64_t task_id);
+  void remove_edge_batch(uint32_t *srcs, std::pair<uint32_t, uint32_t> *dests, uint_t edge_count);
 
 
-  void insert(uint64_t task_id, uint_t index, uint32_t elem_dest, uint32_t elem_value, uint32_t src
+  void insert(uint64_t task_id, uint_t index, std::pair<uint32_t, uint32_t> elem_dest, uint32_t elem_value, uint32_t src
   	#if ENABLE_PMA_LOCK == 1
   	, pair_int held_locks
   	#endif
   	);
-  void remove(uint64_t task_id, uint_t index, uint32_t elem_dest, uint32_t src
+  void remove(uint64_t task_id, uint_t index, std::pair<uint32_t, uint32_t> elem_dest, uint32_t src
     #if ENABLE_PMA_LOCK == 1
     , pair_int held_locks
     #endif
     );
   uint64_t get_size();
   uint64_t get_n();
-  std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> get_edges();
+  std::vector<std::tuple<uint32_t, std::pair<uint32_t, uint32_t>, uint32_t>> get_edges();
   void clear();
   bool check_no_locks();
   bool check_no_locks_for_me(uint64_t task_id);
@@ -174,7 +174,7 @@ public:
     uint_t place;
     uint_t end;
     uint32_t * vals;
-    uint32_t * dests;
+    std::pair<uint32_t, uint32_t> * dests;
     uint8_t loglogN;
     iterator(const PMA *G, uint32_t node, bool start) {
       if (!start) {
@@ -184,9 +184,9 @@ public:
       place = G->nodes[node].beginning + 1;
       end = G->nodes[node].end;
       vals = (uint32_t *)G->edges.vals;
-      dests = (uint32_t *)G->edges.dests;
+      dests = (std::pair<uint32_t, uint32_t> *)G->edges.dests;
       loglogN = G->edges.loglogN;
-      while ((place < end) && (dests[place] == NULL_VAL)) {
+      while ((place < end) && (dests[place].first == NULL_VAL)) {
         place = ((place >> loglogN) + 1) << (loglogN);
       }
       if (place > end) {
@@ -210,7 +210,7 @@ public:
     }
     iterator& operator++() {
       place += 1;
-      while ((place < end) && (dests[place] == NULL_VAL)) {
+      while ((place < end) && (dests[place].first == NULL_VAL)) {
         place = ((place >> loglogN) + 1) << (loglogN);
       }
       if (place > end) {

@@ -165,7 +165,7 @@ void PMA::clear() {
 
 
 // TODO jump to next leaf
-vector<tuple<uint32_t, uint32_t, uint32_t>> PMA::get_edges() {
+vector<tuple<uint32_t, std::pair<uint32_t, uint32_t>, uint32_t>> PMA::get_edges() {
   // TODO grab locks in the lock list
   // for now, grabs the global lock
 #if ENABLE_PMA_LOCK == 1
@@ -173,7 +173,7 @@ vector<tuple<uint32_t, uint32_t, uint32_t>> PMA::get_edges() {
 #endif
   // edges.list_lock.lock();
   uint64_t n = get_n();
-  vector<tuple<uint32_t, uint32_t, uint32_t>> output;
+  vector<tuple<uint32_t, std::pair<uint32_t, uint32_t>, uint32_t>> output;
 
   for (uint_t i = 0; i < n; i++) {
     uint_t start = nodes[i].beginning;
@@ -182,7 +182,7 @@ vector<tuple<uint32_t, uint32_t, uint32_t>> PMA::get_edges() {
     nodes[i].lock.lock_shared();
 #endif
     for (uint_t j = start + 1; j < end; j++) {
-      if (edges.dests[j]!=NULL_VAL) {
+      if (edges.dests[j].first!=NULL_VAL) {
         output.push_back(
             make_tuple(i, edges.dests[j], edges.vals[j]));
       }
@@ -227,9 +227,9 @@ uint64_t PMA::get_size() {
 void print_array(edge_list_t *edges) {
   printf("N = %d, logN = %d\n", edges->N, edges->logN);
   for (uint_t i = 0; i < edges->N; i++) {
-    if (edges->dests[i]==NULL_VAL) {
+    if (edges->dests[i].first==NULL_VAL) {
       printf("%d-x ", i);
-    } else if ((edges->dests[i]==SENT_VAL) || i == 0) {
+    } else if ((edges->dests[i].first==SENT_VAL) || i == 0) {
       uint32_t value = edges->vals[i];
       if (value == NULL_VAL) {
         value = 0;
@@ -1006,7 +1006,7 @@ uint_t binary_search(const edge_list_t *list, uint32_t elem_dest, uint32_t elem_
   return end;
 }
 
-uint32_t PMA::find_value(uint32_t src, uint32_t dest) {
+uint32_t PMA::find_value(uint32_t src, uint32_t dest, uint32_t key) {
 
 #if ENABLE_PMA_LOCK == 1
   uint64_t task_id = __sync_fetch_and_add(&next_task_id, 2);
