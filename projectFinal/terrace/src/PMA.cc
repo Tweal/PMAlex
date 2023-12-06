@@ -1045,6 +1045,25 @@ uint32_t PMA::find_value(uint32_t src, uint32_t dest) {
   }
 }
 
+uint32_t PMA::find_key(uint32_t src, uint32_t dest) {
+#if ENABLE_PMA_LOCK == 1
+  uint64_t task_id = __sync_fetch_and_add(&next_task_id, 2);
+  node_lock.lock_shared(task_id);
+#endif
+  uint32_t e_value = 0;
+  uint32_t e_dest = dest;
+
+  uint_t loc =
+      binary_search(&edges, e_dest, e_value, nodes[src].beginning + 1, nodes[src].end);
+#if ENABLE_PMA_LOCK == 1
+  nodes[src].lock.unlock(task_id, GENERAL);
+  // edges.list_lock.unlock_shared();
+  node_lock.unlock_shared(task_id);
+#endif
+
+  return loc;
+}
+
 //assumes node_lock is held
 uint32_t PMA::find_contaning_node(uint_t index) {
   uint32_t start = 0; 

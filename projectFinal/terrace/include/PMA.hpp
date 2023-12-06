@@ -104,6 +104,7 @@ public:
   uint_t fix_sentinel(uint32_t node_index, uint_t in);
   void print_array(uint64_t worker_num = 0);
   uint32_t find_value(uint32_t src, uint32_t dest);
+  uint32_t find_key(uint32_t src, uint32_t dest);
   void print_graph();
   void add_node();
 
