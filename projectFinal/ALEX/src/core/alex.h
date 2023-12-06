@@ -73,7 +73,7 @@ class Alex {
   class ConstReverseIterator;
   class NodeIterator;  // Iterates through all nodes with pre-order traversal
 
-	PMA pma = pma_create();
+	//PMA pma = pma_create();
   AlexNode<T, P>* root_node_ = nullptr;
   model_node_type* superroot_ =
       nullptr;  // phantom node that is the root's parent
@@ -219,7 +219,7 @@ class Alex {
     root_node_ = empty_data_node;
     stats_.num_data_nodes++;
     create_superroot();
-    PMA pma = pma.create()
+    //PMA pma = pma.create()
   }
 
   Alex(const Compare& comp, const Alloc& alloc = Alloc())
@@ -657,6 +657,8 @@ class Alex {
     // Build temporary root model, which outputs a CDF in the range [0, 1]
     root_node_ =
         new (model_node_allocator().allocate(1)) model_node_type(0, allocator_);
+        //values is a (sorted) parameter, just make sure its passed correctly
+        //
     T min_key = values[0].first;
     T max_key = values[num_keys - 1].first;
     root_node_->model_.a_ = 1.0 / (max_key - min_key);
@@ -666,6 +668,7 @@ class Alex {
     LinearModel<T> root_data_node_model;
     data_node_type::build_model(values, num_keys, &root_data_node_model,
                                 params_.approximate_model_computation);
+    //root node's cost? 
     DataNodeStats stats;
     root_node_->cost_ = data_node_type::compute_expected_cost(
         values, num_keys, data_node_type::kInitDensity_,
@@ -676,6 +679,9 @@ class Alex {
     bulk_load_node(values, num_keys, root_node_, num_keys,
                    &root_data_node_model);
 
+	//where does this really come in to play?
+	//find out where splits are happening, make sure PMA is doing those
+	//ok to still have check on if node is a leaf
     if (root_node_->is_leaf_) {
       static_cast<data_node_type*>(root_node_)
           ->expected_avg_exp_search_iterations_ = stats.num_search_iterations;
@@ -860,6 +866,7 @@ class Alex {
 
   // Caller needs to set the level, duplication factor, and neighbor pointers of
   // the returned data node
+  
   data_node_type* bulk_load_leaf_node_from_existing(
       const data_node_type* existing_node, int left, int right,
       bool compute_cost = true, const fanout_tree::FTNode* tree_node = nullptr,
@@ -878,6 +885,7 @@ class Alex {
     } else if (reuse_model) {
       // Use the model from the existing node
       // Assumes the model is accurate
+      //get num_keys_in_range
       int num_actual_keys = existing_node->num_keys_in_range(left, right);
       LinearModel<T> precomputed_model(existing_node->model_);
       precomputed_model.b_ -= left;
@@ -2179,7 +2187,7 @@ class Alex {
     data_node_type* leaf = get_leaf(key);
     int num_erased = leaf->erase(key);
     stats_.num_keys -= num_erased;
-    if (leaf->num_keys_ == 0) {
+    if (leaf->num_keys_ == 0) {	//issue here? how?
       merge(leaf, key);
     }
     if (key > istats_.key_domain_max_) {
@@ -2493,6 +2501,7 @@ class Alex {
 
     Iterator() {}
 
+//no more bitmap stuff, change it to PMA
     Iterator(data_node_type* leaf, int idx) : cur_leaf_(leaf), cur_idx_(idx) {
       initialize();
     }

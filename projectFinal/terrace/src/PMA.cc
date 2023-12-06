@@ -2971,7 +2971,7 @@ void PMA::remove_edge_batch(uint32_t *srcs, uint32_t *dests, uint_t edge_count) 
 }
 
 
-
+/*
 PMA::PMA(uint32_t init_n) {
   next_task_id = 1;
   //making sure logN is at least 4
@@ -2987,7 +2987,7 @@ PMA::PMA(uint32_t init_n) {
     upper_density_bound[i] = density_bound(&edges, i).y;
     lower_density_bound[i] = density_bound(&edges, i).x;
   }
-
+*/
   // printf("N = %d, logN = %d, loglogN = %d, H = %d\n", list->N, list->logN,
   // list->loglogN, list->H);
   

@@ -92,7 +92,7 @@ public:
 
   // function headings
   PMA(uint32_t init_n = 16);
-  PMA(PMA &other);
+  //PMA(PMA &other);
   ~PMA();
   void double_list(uint64_t task_id, std::vector<uint_t> &sub_counts, uint_t num_elements);
   void half_list(uint64_t task_id, std::vector<uint_t> &sub_counts, uint_t num_elements);

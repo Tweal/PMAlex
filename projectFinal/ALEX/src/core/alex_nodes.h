@@ -2334,6 +2334,7 @@ class AlexDataNode_Old : public AlexNode<T, P> {
   }
 };
 
+////////////////////////////////////////////////////////////////////////
 
 template <class T, class P, class Compare = AlexCompare,
           class Alloc = std::allocator<std::pair<T, P>>,
@@ -2359,6 +2360,7 @@ class AlexDataNode : public AlexNode<T, P> {
 
   PMA pma = PMA(1);
   int data_capacity_ = 0; // Size of PMA array, this is needed by alex.h
+  int num_keys_ = 0;
 
   // Variables related to resizing (expansions and contractions)
   static constexpr double kMaxDensity_ = 0.8;  // density after contracting,
@@ -2381,7 +2383,7 @@ class AlexDataNode : public AlexNode<T, P> {
   /*** Constructors and Destructors ***/
   explicit AlexDataNode(const Compare& comp = Compare(),
                         const Alloc& alloc = Alloc())
-      : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {init();}
+      : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {init(0);}//??
 
   AlexDataNode(short level,
                const Compare& comp = Compare(), const Alloc& alloc = Alloc())
@@ -2444,7 +2446,7 @@ class AlexDataNode : public AlexNode<T, P> {
       this->model_.b_ = precomputed_model->b_;
     }
 
-    init();
+    init(num_keys_);
     if (num_actual_keys == 0)
       return;
  
@@ -2550,28 +2552,84 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
   // TODO: Update this when we are storing keys in PMA as well
   inline T& get_key(int pos) const { return pos; }
 
-	//const issue -> removed? 
-  inline P& get_payload(int pos) { return pma.find_value(0, pos); }
+	//const issue -> removed? now still has issues with lvalue rvalue
+	//not on damage report? 
+	//pma.find_value for which node? which pma is calling it?
+	//whichever pma -> this? was 
+	//can still use arrays to hold keys and values right?
+  inline P& get_payload(int pos) const { return pma->find_value(0, pos); }
 
   // I dont know if these next nine methods are needed but I'm including them to the best of my abilities
   T first_key() const {
-    PMA::iterator it = pma.begin(0);
-    return *it.dest; 
+    //PMA::iterator it = pma.begin(0);
+    int pos = 0;
+    //
+    for (int i = 0; i < data_capacity_; i++)
+    {
+    	v = pma->dests[i];
+    	if(v != 0)
+    	{
+    		return pma->dests[pos]; //should be of type T, not uint32_t
+    	}
+
+    } 
+    //use iterator or just the noe properties? probably ok
+    return std::numeric_limits<T>::max(); //should be indexing into this -> no, those are values --> return first 
   }
 
   T last_key() const {
-    PMA::iterator it = pma.end(0);
-    return it.dest; 
+  	int pos = 0;
+    //
+      for (i = data_capacity_ -1; i >= 0; i--)
+    {
+    	v = pma->dests[i];
+    	if(v != 0)
+    	{
+    		return pma->dests[pos]; //should be of type T, not uint32_t
+    	}
+
+    } 
+    //use iterator or just the noe properties? probably ok
+    return std::numeric_limits<T>::lowest();
+    //PMA::iterator it = pma.end(0);
+    //return it.dest; 
   }
 
   int first_pos() const {
-    PMA::iterator it = pma.end(0);
-    return it.place;    
+    //PMA::iterator it = pma.end(0);
+    //return it.place; 
+    //return it.beginning;  
+       int pos = 0;
+    //
+    for (i = 0; i < data_capacity_; i++)
+    {
+    	v = pma->dests[i];
+    	if(v != 0)
+    	{
+    		return pma->dests[pos]; //should be of type T, not uint32_t
+    	}
+
+    } 
+    return 0;
   }
 
   int last_pos() const {
-    PMA::iterator it = pma.end(0);
-    return it.end;    
+    //PMA::iterator it = pma.end(0);
+    //return it.end; 
+    int pos = 0;
+
+    //
+    for (i = data_capacity_ - 1; i >= 0; i--)//static methods (?)
+    {
+    	v = pma->dests[i];
+    	if(v != 0)
+    	{
+    		return pma->dests[pos]; //should be of type T, not uint32_t
+    	}
+
+    } 
+    //use iterator or just the noe properties? probably ok
+    return 0;   
   }
 
   // True if a < b
@@ -2604,11 +2662,15 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
     return !key_less_(a, b) && !key_less_(b, a);
   }
 
-  int num_keys_in_range(int left, int right) {
+  int num_keys_in_range(int left, int right) const {
     const_iterator_type it(this, left);
     int num_keys = 0;
-    for (: it.cur_idx_ < right && !it.is_end(); it++) {
+    for (i = left + 1; i < right - 1; i++) {
+    
+    	if(pma->vals[i] != 0) //nodes dont have vals, but the pma does
+    	{
       num_keys++;
+      }
     }
     return num_keys;
   }
@@ -2646,7 +2708,7 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
       if (pos == data_capacity_) return data_capacity_;
     }
     uint32_t * dests = pma.edges.dests;
-    while ((pos < data_capacity) && dests[pos] == PMA::NULL_VAL) {
+    while ((pos < data_capacity_) && dests[pos] == PMA::NULL_VAL) {
       pos++;
     }
   }
@@ -2752,20 +2814,24 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
     int low_pos = find_lower(start_key);
     int high_pos = find_upper(end_key);
     int count = 0;
+    int cur_idx = start_key
     PMA::iterator it = pma.begin(0)
-    for (; it != pma.end(0); it++) {
-      PMA::edge_t e = *it;
-      if (e.dest < low_pos) {
-        pma.remove_edge(0, e.dest);
+    //for (; it != pma.end(0); it++) {
+    //if(end_key_exclusive)
+    for (int i = start_key; i < end_key - 1; i++)
+      //PMA::edge_t e = *it;
+      uint32_t key = it->dests[i];
+      if (key < low_pos) {
+        pma.remove_edge(0, key);
         count++;
       }
       if (e.dest >= high_pos) {
         break;
       }
     }
-    if (end_key_inclusive && *it.dest == high_pos) {
+    if (end_key_inclusive && *it.dests == high_pos) {
       count++;
-      pma.remove_edge(0, *it.dest);
+      pma.remove_edge(0, *it.dests);
     }
     return count;
   }
@@ -2775,7 +2841,11 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
   long long node_size() const override { return sizeof(self_type); }
 
   long long data_size() const {
-    long long data_size = static_cast<long long>(pma.get_size());
+  
+  	//node iterator, then array iterator?
+  //self or this maybe?-> or nothing?
+    long long data_size = static_cast<long long>(get_size());
+    //const issue again -> which one is it? the whole thing?
     return data_size;
   }
 
@@ -2800,30 +2870,36 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
     }
 
     void initialize() {
-      it = node_.pma.begin(0);
+      it = node_->pma.begin(0);
       // Walk pma iterator to cur_idx_
-      for (int i = 0; i < cur_idx_; i++, it++){}
+      for (int i = 0; i < cur_idx_; i++)//, it++)
+      {
+      //TODO -> 
+      }
     }
 
     void operator++(int) {
       cur_idx_++;
-      it++;
+      //it++;//?
     }
 
     V operator*() const {
-      PMA::edge_t edge = *it;
-      return std::make_pair(it.dest, it.value);
+      //PMA::edge_t edge = *it;
+      //
+      return std::make_pair(it.dests[cur_idx_], it.vals[cur_idx_]);
     }
 
     const T& key() const {
-      return *it.dest;
+    return cur_idx_;
+      //return *it.dest;
     }
 
     const P& payload() const {
-      return *it.value;
+    return it.dests[cur_idx_];
+      //return *it.value;
     }
 
-    bool is_end() const { return it != node_.pma.end(0); }
+    bool is_end() const { return it != node_->pma.end(0); }
 
     bool operator==(const Iterator& rhs) const {
       return cur_idx_ == rhs.cur_idx_;

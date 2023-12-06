@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/pbecket1/Documents/proj/projectFinal/ALEX/src/core -I/home/pbecket1/Documents/proj/projectFinal/ALEX/../../terrace/include -I/home/pbecket1/Documents/proj/projectFinal/ALEX/build/doctest
+CXX_INCLUDES = -I//home/pbecket1/Documents/CS6530Project/projectFinal/ALEX/src/core -I//home/pbecket1/Documents/CS6530Project/projectFinal/ALEX/../../terrace/include -I//home/pbecket1/Documents/CS6530Project/projectFinal/ALEX/build/doctest
 
 CXX_FLAGS = -O3 -march=native -Wall -Wextra -O3 -DNDEBUG
 
