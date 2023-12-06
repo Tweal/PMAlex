@@ -11,8 +11,8 @@
 #pragma once
 
 #include "alex_base.h"
-#include "PMA.hpp"
-
+#include "../../../terrace/include/PMA.hpp"
+//#include "../../../pma-master/src/pma.h"
 
 // Whether we store key and payload arrays separately in data nodes
 // By default, we store them separately
@@ -38,6 +38,9 @@ namespace alex {
 template <class T, class P>
 class AlexNode {
  public:
+ 
+ PMA pma = PMA(1);
+ 
   // Whether this node is a leaf (data) node
   bool is_leaf_ = false;
 
@@ -56,6 +59,8 @@ class AlexNode {
   // Could be either the expected or empirical cost, depending on how this field
   // is used
   double cost_ = 0.0;
+  
+  //PMA pma = pma stuff;
 
   AlexNode() = default;
   explicit AlexNode(short level) : level_(level) {}
@@ -2376,18 +2381,18 @@ class AlexDataNode : public AlexNode<T, P> {
   /*** Constructors and Destructors ***/
   explicit AlexDataNode(const Compare& comp = Compare(),
                         const Alloc& alloc = Alloc())
-      : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {init()}
+      : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {init();}
 
   AlexDataNode(short level,
                const Compare& comp = Compare(), const Alloc& alloc = Alloc())
       : AlexNode<T, P>(level, true),
         key_less_(comp),
-        allocator_(alloc){init()}
+        allocator_(alloc){init();}
 
-  void init(int num_keys = pma.edges.N) {
+  void init(int num_keys){// = pma.edges.N) {
     // data capacity will be the next power of 2 greater than num keys, this will be what the PMA ends up expanding out to
     // I'm not 100% certain this works but I don't see why it wouldn't
-    data_capacity_ = std::max(pma.edges.N, 1 << (bsr_word(num_keys) + 1));
+    data_capacity_ = std::max(/*pma.edges.N*/num_keys, 1 << (bsr_word(num_keys) + 1));
   }
 
   /*** Bulk loading and model building***/
@@ -2411,7 +2416,7 @@ class AlexDataNode : public AlexNode<T, P> {
     for (int i = 0; i < num_keys; i++) {
       uint32_t pos = static_cast<uint32_t>(this->model_.predict(values[i].first));
       uint32_t val = static_cast<uint32_t>(values[i].second);
-      pma.add_edge_update(0, pos, val)
+      pma.add_edge_update(0, pos, val);
     }
     
   }
@@ -2448,7 +2453,7 @@ class AlexDataNode : public AlexNode<T, P> {
     const_iterator_type it(node, left);
     for (; it.cur_idx_ < right && !it.is_end(); it++) {
       int pos = this->model_.predict(it.key());
-      pma.add_edge_update(0, pos, it.payload())
+      pma.add_edge_update(0, pos, it.payload());
     }
   }
 
@@ -2545,26 +2550,27 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
   // TODO: Update this when we are storing keys in PMA as well
   inline T& get_key(int pos) const { return pos; }
 
-  inline P& get_payload(int pos) const { return pma.find_value(0, pos); }
+	//const issue -> removed? 
+  inline P& get_payload(int pos) { return pma.find_value(0, pos); }
 
   // I dont know if these next nine methods are needed but I'm including them to the best of my abilities
   T first_key() const {
-    PMA::iterator it = pma.begin(0)
-    return *it.dest;
+    PMA::iterator it = pma.begin(0);
+    return *it.dest; 
   }
 
   T last_key() const {
-    PMA::iterator it = pma.end(0)
-    return *it.dest;
+    PMA::iterator it = pma.end(0);
+    return it.dest; 
   }
 
   int first_pos() const {
-    PMA::iterator it = pma.end(0)
+    PMA::iterator it = pma.end(0);
     return it.place;    
   }
 
   int last_pos() const {
-    PMA::iterator it = pma.end(0)
+    PMA::iterator it = pma.end(0);
     return it.end;    
   }
 
@@ -2600,7 +2606,7 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
 
   int num_keys_in_range(int left, int right) {
     const_iterator_type it(this, left);
-    int num_keys = 0
+    int num_keys = 0;
     for (: it.cur_idx_ < right && !it.is_end(); it++) {
       num_keys++;
     }
@@ -2610,9 +2616,10 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
   /*** Lookup ***/
 
   // Predicts the position of a key using the model
+  //was data_capacity - 1, so the equivalent is 
   inline int predict_position(const T& key) const {
     int position = this->model_.predict(key);
-    position = std::max<int>(std::min<int>(position, pma.edges[0].end - 1), 0);
+    position = std::max<int>(std::min<int>(position, pma.edges.N - 1), 0);
     return position;
   } 
 
@@ -2631,6 +2638,7 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
     return find_key(key);
   }
 
+	//
   // I'm not sure why this is needed but it's used in alex.h
   int get_next_filled_position(int pos, bool exclusive) const {
     if (exclusive) {

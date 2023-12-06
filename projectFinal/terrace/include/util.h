@@ -17,7 +17,7 @@
 #include <fstream>
 #include <unordered_map>
 
-#include "spdlog/spdlog.h"
+//#include "spdlog/spdlog.h"
 
 #ifdef DEBUG_MODE
 #define PRINT_DEBUG 1
@@ -26,7 +26,7 @@
 #endif
 
 #define SDSL_BITVECTOR_BLOCK_SIZE 127
-extern std::shared_ptr<spdlog::logger> console;
+//extern std::shared_ptr<spdlog::logger> console;
 
 #define DEBUG(x) do { \
 	if (PRINT_DEBUG) { std::cerr << x << std::endl; } \

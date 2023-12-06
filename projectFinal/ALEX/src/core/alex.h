@@ -38,6 +38,7 @@
 #include "alex_base.h"
 #include "alex_fanout_tree.h"
 #include "alex_nodes.h"
+//#include "../../../pma-master/src/pma.h"
 
 // Whether we account for floating-point precision issues when traversing down
 // ALEX.
@@ -72,6 +73,7 @@ class Alex {
   class ConstReverseIterator;
   class NodeIterator;  // Iterates through all nodes with pre-order traversal
 
+	PMA pma = pma_create();
   AlexNode<T, P>* root_node_ = nullptr;
   model_node_type* superroot_ =
       nullptr;  // phantom node that is the root's parent
@@ -217,6 +219,7 @@ class Alex {
     root_node_ = empty_data_node;
     stats_.num_data_nodes++;
     create_superroot();
+    PMA pma = pma.create()
   }
 
   Alex(const Compare& comp, const Alloc& alloc = Alloc())
@@ -1129,6 +1132,8 @@ class Alex {
   std::pair<Iterator, bool> insert(const T& key, const P& payload) {
     // If enough keys fall outside the key domain, expand the root to expand the
     // key domain
+    //pma.insert(key, payload)
+    
     if (key > istats_.key_domain_max_) {
       istats_.num_keys_above_key_domain++;
       if (should_expand_right()) {
@@ -1139,6 +1144,7 @@ class Alex {
       if (should_expand_left()) {
         expand_root(key, true);  // expand to the left
       }
+      
     }
 
     data_node_type* leaf = get_leaf(key);
