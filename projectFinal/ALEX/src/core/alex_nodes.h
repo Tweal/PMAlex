@@ -2352,7 +2352,7 @@ class AlexDataNode : public AlexNode<T, P> {
   self_type* next_leaf_ = nullptr;
   self_type* prev_leaf_ = nullptr;
 
-  PMA pma = PMA(1);
+  PMA pma;
   int data_capacity_ = 0; // Size of PMA array, this is needed by alex.h
 
   // Variables related to resizing (expansions and contractions)
@@ -2376,18 +2376,20 @@ class AlexDataNode : public AlexNode<T, P> {
   /*** Constructors and Destructors ***/
   explicit AlexDataNode(const Compare& comp = Compare(),
                         const Alloc& alloc = Alloc())
-      : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {init()}
+      : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {init();}
 
   AlexDataNode(short level,
                const Compare& comp = Compare(), const Alloc& alloc = Alloc())
       : AlexNode<T, P>(level, true),
         key_less_(comp),
-        allocator_(alloc){init()}
+        allocator_(alloc){init();}
 
-  void init(int num_keys = pma.edges.N) {
+  void init(int num_keys = 0) {
+    pma = PMA(1);
+
     // data capacity will be the next power of 2 greater than num keys, this will be what the PMA ends up expanding out to
     // I'm not 100% certain this works but I don't see why it wouldn't
-    data_capacity_ = std::max(pma.edges.N, 1 << (bsr_word(num_keys) + 1));
+    data_capacity_ = std::max(static_cast<int>(pma.edges.N), 1 << (bsr_word(num_keys) + 1));
   }
 
   /*** Bulk loading and model building***/
@@ -2411,7 +2413,7 @@ class AlexDataNode : public AlexNode<T, P> {
     for (int i = 0; i < num_keys; i++) {
       uint32_t pos = static_cast<uint32_t>(this->model_.predict(values[i].first));
       uint32_t val = static_cast<uint32_t>(values[i].second);
-      pma.add_edge_update(0, pos, val)
+      pma.add_edge_update(0, pos, val);
     }
     
   }
@@ -2448,7 +2450,7 @@ class AlexDataNode : public AlexNode<T, P> {
     const_iterator_type it(node, left);
     for (; it.cur_idx_ < right && !it.is_end(); it++) {
       int pos = this->model_.predict(it.key());
-      pma.add_edge_update(0, pos, it.payload())
+      pma.add_edge_update(0, pos, it.payload());
     }
   }
 
@@ -2545,26 +2547,28 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
   // TODO: Update this when we are storing keys in PMA as well
   inline T& get_key(int pos) const { return pos; }
 
-  inline P& get_payload(int pos) const { return pma.find_value(0, pos); }
+  inline P& get_payload(int pos) { 
+    return pma.find_value(static_cast<uint32_t>(0), static_cast<uint32_t>(pos)); 
+  }
 
   // I dont know if these next nine methods are needed but I'm including them to the best of my abilities
   T first_key() const {
-    PMA::iterator it = pma.begin(0)
-    return *it.dest;
+    PMA::iterator it = pma.begin(0);
+    return (*it).dest;
   }
 
   T last_key() const {
-    PMA::iterator it = pma.end(0)
-    return *it.dest;
+    PMA::iterator it = pma.end(0);
+    return (*it).dest;
   }
 
   int first_pos() const {
-    PMA::iterator it = pma.end(0)
+    PMA::iterator it = pma.end(0);
     return it.place;    
   }
 
   int last_pos() const {
-    PMA::iterator it = pma.end(0)
+    PMA::iterator it = pma.end(0);
     return it.end;    
   }
 
@@ -2600,8 +2604,8 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
 
   int num_keys_in_range(int left, int right) {
     const_iterator_type it(this, left);
-    int num_keys = 0
-    for (: it.cur_idx_ < right && !it.is_end(); it++) {
+    int num_keys = 0;
+    for (; it.cur_idx_ < right && !it.is_end(); it++) {
       num_keys++;
     }
     return num_keys;
@@ -2612,7 +2616,7 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
   // Predicts the position of a key using the model
   inline int predict_position(const T& key) const {
     int position = this->model_.predict(key);
-    position = std::max<int>(std::min<int>(position, pma.edges[0].end - 1), 0);
+    position = std::max<int>(std::min<int>(position, pma.nodes[0].end - 1), 0);
     return position;
   } 
 
@@ -2638,7 +2642,7 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
       if (pos == data_capacity_) return data_capacity_;
     }
     uint32_t * dests = pma.edges.dests;
-    while ((pos < data_capacity) && dests[pos] == PMA::NULL_VAL) {
+    while ((pos < data_capacity_) && dests[pos] == UINT32_MAX) {
       pos++;
     }
   }
@@ -2744,20 +2748,19 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
     int low_pos = find_lower(start_key);
     int high_pos = find_upper(end_key);
     int count = 0;
-    PMA::iterator it = pma.begin(0)
-    for (; it != pma.end(0); it++) {
-      PMA::edge_t e = *it;
-      if (e.dest < low_pos) {
-        pma.remove_edge(0, e.dest);
+    PMA::iterator it = pma.begin(0);
+    for (; it != pma.end(0); ++it) {
+      if ((*it).dest < low_pos) {
+        pma.remove_edge(0, (*it).dest);
         count++;
       }
-      if (e.dest >= high_pos) {
+      if ((*it).dest >= high_pos) {
         break;
       }
     }
-    if (end_key_inclusive && *it.dest == high_pos) {
+    if (end_key_inclusive && (*it).dest == high_pos) {
       count++;
-      pma.remove_edge(0, *it.dest);
+      pma.remove_edge(0, (*it).dest);
     }
     return count;
   }
@@ -2766,7 +2769,7 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
 
   long long node_size() const override { return sizeof(self_type); }
 
-  long long data_size() const {
+  long long data_size() {
     long long data_size = static_cast<long long>(pma.get_size());
     return data_size;
   }
@@ -2794,25 +2797,24 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
     void initialize() {
       it = node_.pma.begin(0);
       // Walk pma iterator to cur_idx_
-      for (int i = 0; i < cur_idx_; i++, it++){}
+      for (int i = 0; i < cur_idx_; i++, ++it){}
     }
 
     void operator++(int) {
       cur_idx_++;
-      it++;
+      ++it;
     }
 
     V operator*() const {
-      PMA::edge_t edge = *it;
-      return std::make_pair(it.dest, it.value);
+      return std::make_pair((*it).dest, (*it).value);
     }
 
     const T& key() const {
-      return *it.dest;
+      return (*it).dest;
     }
 
     const P& payload() const {
-      return *it.value;
+      return (*it).value;
     }
 
     bool is_end() const { return it != node_.pma.end(0); }
@@ -2827,3 +2829,4 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
   iterator_type begin() { return iterator_type(this, 0); }
 
 };
+}

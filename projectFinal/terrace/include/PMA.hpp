@@ -23,7 +23,7 @@
 #include "parallel.h"
 #include "PMA_Lock.hpp"
 
-#include "integerSort/blockRadixSort/blockRadixSort.h"
+// #include "integerSort/blockRadixSort/blockRadixSort.h"
 
 typedef struct _edge {
   uint32_t value; // length in array

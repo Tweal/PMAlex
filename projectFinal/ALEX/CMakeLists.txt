@@ -18,7 +18,7 @@ else()
 endif()
 
 include_directories(src/core
-    ../../terrace/include
+    ../terrace/include
 )
 
 add_executable(example src/examples/main.cpp)
