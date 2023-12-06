@@ -2355,6 +2355,24 @@ class AlexDataNode : public AlexNode<T, P> {
   PMA pma = PMA(1);
   int data_capacity_ = 0; // Size of PMA array, this is needed by alex.h
 
+  // Variables related to resizing (expansions and contractions)
+  static constexpr double kMaxDensity_ = 0.8;  // density after contracting,
+                                               // also determines the expansion
+                                               // threshold
+  static constexpr double kInitDensity_ =
+      0.7;  // density of data nodes after bulk loading
+  static constexpr double kMinDensity_ = 0.6;  // density after expanding, also
+                                               // determines the contraction
+                                               // threshold
+  double expansion_threshold_ = 1;  // expand after m_num_keys is >= this number
+  double contraction_threshold_ =
+      0;  // contract after m_num_keys is < this number
+  static constexpr int kDefaultMaxDataNodeBytes_ =
+      1 << 24;  // by default, maximum data node size is 16MB
+  int max_slots_ =
+      kDefaultMaxDataNodeBytes_ /
+      sizeof(V);  // cannot expand beyond this number of key/data slots
+
   /*** Constructors and Destructors ***/
   explicit AlexDataNode(const Compare& comp = Compare(),
                         const Alloc& alloc = Alloc())
@@ -2599,6 +2617,7 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
   } 
 
   // Returns the position of the provided key
+  // If key is not found returns pma.nodes[0].end, ie what data_capacity_ should be
   int find_key(const T& key) {
     int pos = predict_position(key);
     return pma.find_key(0, pos);
@@ -2629,8 +2648,7 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
   // Compare with find_upper()
   template <class K>
   int upper_bound(const K& key) {
-    assert(false);
-    return -1;
+    return find_upper(key) + 1;
   }  
 
   // Searches for the first position no less than key
@@ -2638,8 +2656,119 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
   // Compare with find_lower()
   template <class K>
   int lower_bound(const K& key) {
-    assert(false);
-    return -1;
+    return find_lower(key);
+  }
+
+  /*** Inserts ***/
+  // Whether empirical cost deviates significantly from expected cost
+  // TODO: Matt is working on this?
+  inline bool significant_cost_deviation() const {
+    return false;
+  }
+
+  // Returns true if cost is catastrophically high and we want to force a split
+  // The heuristic for this is if the worst case insert excedes some arbitrary value
+  // In this case it'll be if the PMA excedes 512 size
+  inline bool catastrophic_cost() const {
+    return pma.edges.loglogN > 3.3;
+  }
+
+  // First value in returned pair is fail flag:
+  // 0 if successful insert (possibly with automatic expansion).
+  // 1 if no insert because of significant cost deviation.
+  // 2 if no insert because of "catastrophic" cost.
+  // 3 if no insert because node is at max capacity.
+  // -1 if key already exists and duplicates not allowed.
+  //
+  // Second value in returned pair is position of inserted key, or of the
+  // already-existing key.
+  // -1 if no insertion.
+  std::pair<int, int> insert(const T& key, const P& payload) {
+    if (significant_cost_deviation()) {
+      return {1, -1};
+    }
+    if (catastrophic_cost()) {
+      return {2, -1};
+    }
+    if (pma.nodes[0].num_neighbors > max_slots_ * kMinDensity_) {
+      return {3, -1};
+    }
+    
+    //insert to PMA
+    int pos = predict_position(key);
+    pma.add_edge_update(0, pos, payload);
+    return {0, pos};
+  }
+
+  // Shouldn't be needed
+  inline bool is_append_mostly_right() const {
+    return false;
+  }
+
+  // Shouldn't be needed
+  inline bool is_append_mostly_left() const {
+    return false;
+  }
+
+  /*** Deletes ***/
+
+  // Erase the left-most key with the input value
+  // Returns the number of keys erased (0 or 1)
+  int erase_one(const T& key) {
+    int pos = find_lower(key);
+
+    if (pos == data_capacity_)
+      return 0;
+
+    // Erase key at pos
+    erase_one_at(pos);
+    return 1;
+  }
+
+  // Erase the key at the given position
+  void erase_one_at(int pos) {
+    // PMA handles contraction already
+    pma.remove_edge(0, pos);
+  }
+
+  // Erase all keys with the input value
+  // Returns the number of keys erased
+  // PMA does not allow multiple of same key so this is the same as erase_one
+  int erase(const T& key) {
+    return erase_one(key);
+  }
+
+  // Erase keys with value between start key (inclusive) and end key.
+  // Returns the number of keys erased.
+  int erase_range(T start_key, T end_key, bool end_key_inclusive = false) {
+    int low_pos = find_lower(start_key);
+    int high_pos = find_upper(end_key);
+    int count = 0;
+    PMA::iterator it = pma.begin(0)
+    for (; it != pma.end(0); it++) {
+      PMA::edge_t e = *it;
+      if (e.dest < low_pos) {
+        pma.remove_edge(0, e.dest);
+        count++;
+      }
+      if (e.dest >= high_pos) {
+        break;
+      }
+    }
+    if (end_key_inclusive && *it.dest == high_pos) {
+      count++;
+      pma.remove_edge(0, *it.dest);
+    }
+    return count;
+  }
+
+  /*** Stats ***/
+
+  long long node_size() const override { return sizeof(self_type); }
+
+  long long data_size() const {
+    long long data_size = static_cast<long long>(pma.get_size());
+    return data_size;
   }
 
   /*** Iterator ***/

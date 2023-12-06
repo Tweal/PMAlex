@@ -1192,17 +1192,18 @@ class Alex {
                 .count();
 
         if (fanout_tree_depth == 0) {
-          // expand existing data node and retrain model
-          leaf->resize(data_node_type::kMinDensity_, true,
-                       leaf->is_append_mostly_right(),
-                       leaf->is_append_mostly_left());
-          fanout_tree::FTNode& tree_node = used_fanout_tree_nodes[0];
-          leaf->cost_ = tree_node.cost;
-          leaf->expected_avg_exp_search_iterations_ =
-              tree_node.expected_avg_search_iterations;
-          leaf->expected_avg_shifts_ = tree_node.expected_avg_shifts;
-          leaf->reset_stats();
-          stats_.num_expand_and_retrains++;
+          // TODO: I'm just commenting this out as I believe PMA handles it now
+          // // expand existing data node and retrain model
+          // leaf->resize(data_node_type::kMinDensity_, true,
+          //              leaf->is_append_mostly_right(),
+          //              leaf->is_append_mostly_left());
+          // fanout_tree::FTNode& tree_node = used_fanout_tree_nodes[0];
+          // leaf->cost_ = tree_node.cost;
+          // leaf->expected_avg_exp_search_iterations_ =
+          //     tree_node.expected_avg_search_iterations;
+          // leaf->expected_avg_shifts_ = tree_node.expected_avg_shifts;
+          // leaf->reset_stats();
+          // stats_.num_expand_and_retrains++;
         } else {
           // split data node: always try to split sideways/upwards, only split
           // downwards if necessary
