@@ -1,1 +1,2 @@
-# CS6530Project2
+# PMALEX
+A PMA based implementation of ALEX!

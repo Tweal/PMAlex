@@ -2355,6 +2355,15 @@ class AlexDataNode : public AlexNode<T, P> {
   PMA pma;
   int data_capacity_ = 0; // Size of PMA array, this is needed by alex.h
 
+  // Counters used in cost models
+  long long num_shifts_ = 0;                 // does not reset after resizing
+  long long num_exp_search_iterations_ = 0;  // does not reset after resizing
+  int num_lookups_ = 0;                      // does not reset after resizing
+  int num_inserts_ = 0;                      // does not reset after resizing
+  int num_resizes_ = 0;  // technically not required, but nice to have
+  int num_keys_ = 0;  // number of filled key/data slots (as opposed to gaps)
+
+
   // Variables related to resizing (expansions and contractions)
   static constexpr double kMaxDensity_ = 0.8;  // density after contracting,
                                                // also determines the expansion
@@ -2373,12 +2382,16 @@ class AlexDataNode : public AlexNode<T, P> {
       kDefaultMaxDataNodeBytes_ /
       sizeof(V);  // cannot expand beyond this number of key/data slots
 
+  // Purely for benchmark debugging purposes
+  double expected_avg_exp_search_iterations_ = 0;
+  double expected_avg_shifts_ = 0;
+
   /*** Constructors and Destructors ***/
   explicit AlexDataNode(const Compare& comp = Compare(),
                         const Alloc& alloc = Alloc())
       : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {init();}
 
-  AlexDataNode(short level,
+  AlexDataNode(short level, int max_data_node_slots,
                const Compare& comp = Compare(), const Alloc& alloc = Alloc())
       : AlexNode<T, P>(level, true),
         key_less_(comp),
@@ -2662,6 +2675,23 @@ static void build_model(const V* values, int num_keys, LinearModel<T>* model,
   int lower_bound(const K& key) {
     return find_lower(key);
   }
+
+  // Computes the expected cost of the current node
+  double compute_expected_cost(double frac_inserts = 0) {
+    return 0;
+  }
+
+  // Computes the expected cost of a data node constructed using the input dense
+  // array of keys
+  // Assumes existing_model is trained on the dense array of keys
+  static double compute_expected_cost(
+      const V* values, int num_keys, double density,
+      double expected_insert_frac,
+      const LinearModel<T>* existing_model = nullptr, bool use_sampling = false,
+      DataNodeStats* stats = nullptr) {
+    return 0;
+  }
+
 
   /*** Inserts ***/
   // Whether empirical cost deviates significantly from expected cost
