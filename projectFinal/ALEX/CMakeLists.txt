@@ -17,7 +17,9 @@ else()
     set(CMAKE_CXX_FLAGS "-O3 -march=native -Wall -Wextra")
 endif()
 
-include_directories(src/core)
+include_directories(src/core
+    ../terrace/include
+)
 
 add_executable(example src/examples/main.cpp)
 add_executable(benchmark src/benchmark/main.cpp)

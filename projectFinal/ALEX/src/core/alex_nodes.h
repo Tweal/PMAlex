@@ -11,6 +11,8 @@
 #pragma once
 
 #include "alex_base.h"
+#include "PMA.hpp"
+
 
 // Whether we store key and payload arrays separately in data nodes
 // By default, we store them separately
@@ -290,10 +292,10 @@ class AlexModelNode : public AlexNode<T, P> {
 template <class T, class P, class Compare = AlexCompare,
           class Alloc = std::allocator<std::pair<T, P>>,
           bool allow_duplicates = true>
-class AlexDataNode : public AlexNode<T, P> {
+class AlexDataNode_Old : public AlexNode<T, P> {
  public:
   typedef std::pair<T, P> V;
-  typedef AlexDataNode<T, P, Compare, Alloc, allow_duplicates> self_type;
+  typedef AlexDataNode_Old<T, P, Compare, Alloc, allow_duplicates> self_type;
   typedef typename Alloc::template rebind<self_type>::other alloc_type;
   typedef typename Alloc::template rebind<T>::other key_alloc_type;
   typedef typename Alloc::template rebind<P>::other payload_alloc_type;
@@ -379,18 +381,18 @@ class AlexDataNode : public AlexNode<T, P> {
 
   /*** Constructors and destructors ***/
 
-  explicit AlexDataNode(const Compare& comp = Compare(),
+  explicit AlexDataNode_Old(const Compare& comp = Compare(),
                         const Alloc& alloc = Alloc())
       : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {}
 
-  AlexDataNode(short level, int max_data_node_slots,
+  AlexDataNode_Old(short level, int max_data_node_slots,
                const Compare& comp = Compare(), const Alloc& alloc = Alloc())
       : AlexNode<T, P>(level, true),
         key_less_(comp),
         allocator_(alloc),
         max_slots_(max_data_node_slots) {}
 
-  ~AlexDataNode() {
+  ~AlexDataNode_Old() {
 #if ALEX_DATA_NODE_SEP_ARRAYS
     if (key_slots_ == nullptr) {
       return;
@@ -406,7 +408,7 @@ class AlexDataNode : public AlexNode<T, P> {
     bitmap_allocator().deallocate(bitmap_, bitmap_size_);
   }
 
-  AlexDataNode(const self_type& other)
+  AlexDataNode_Old(const self_type& other)
       : AlexNode<T, P>(other),
         key_less_(other.key_less_),
         allocator_(other.allocator_),
@@ -2325,5 +2327,506 @@ class AlexDataNode : public AlexNode<T, P> {
     }
     return str;
   }
+};
+
+
+template <class T, class P, class Compare = AlexCompare,
+          class Alloc = std::allocator<std::pair<T, P>>,
+          bool allow_duplicates = true>
+class AlexDataNode : public AlexNode<T, P> {
+ public:
+  typedef std::pair<T, P> V;
+  typedef AlexDataNode<T, P, Compare, Alloc, allow_duplicates> self_type;
+  typedef typename Alloc::template rebind<self_type>::other alloc_type;
+
+  const Compare& key_less_;
+  const Alloc& allocator_;
+
+  // Forward declaration
+  template <typename node_type = self_type, typename payload_return_type = P,
+            typename value_return_type = V>
+  class Iterator;
+  typedef Iterator<> iterator_type;
+  typedef Iterator<const self_type, const P, const V> const_iterator_type;
+
+  self_type* next_leaf_ = nullptr;
+  self_type* prev_leaf_ = nullptr;
+
+  PMA pma;
+  int data_capacity_ = 0; // Size of PMA array, this is needed by alex.h
+
+  // Variables related to resizing (expansions and contractions)
+  static constexpr double kMaxDensity_ = 0.8;  // density after contracting,
+                                               // also determines the expansion
+                                               // threshold
+  static constexpr double kInitDensity_ =
+      0.7;  // density of data nodes after bulk loading
+  static constexpr double kMinDensity_ = 0.6;  // density after expanding, also
+                                               // determines the contraction
+                                               // threshold
+  double expansion_threshold_ = 1;  // expand after m_num_keys is >= this number
+  double contraction_threshold_ =
+      0;  // contract after m_num_keys is < this number
+  static constexpr int kDefaultMaxDataNodeBytes_ =
+      1 << 24;  // by default, maximum data node size is 16MB
+  int max_slots_ =
+      kDefaultMaxDataNodeBytes_ /
+      sizeof(V);  // cannot expand beyond this number of key/data slots
+
+  /*** Constructors and Destructors ***/
+  explicit AlexDataNode(const Compare& comp = Compare(),
+                        const Alloc& alloc = Alloc())
+      : AlexNode<T, P>(0, true), key_less_(comp), allocator_(alloc) {init();}
+
+  AlexDataNode(short level,
+               const Compare& comp = Compare(), const Alloc& alloc = Alloc())
+      : AlexNode<T, P>(level, true),
+        key_less_(comp),
+        allocator_(alloc){init();}
+
+  void init(int num_keys = 0) {
+    pma = PMA(1);
+
+    // data capacity will be the next power of 2 greater than num keys, this will be what the PMA ends up expanding out to
+    // I'm not 100% certain this works but I don't see why it wouldn't
+    data_capacity_ = std::max(static_cast<int>(pma.edges.N), 1 << (bsr_word(num_keys) + 1));
+  }
+
+  /*** Bulk loading and model building***/
+  void bulk_load(const V values[], int num_keys,
+                 const LinearModel<T>* pretrained_model = nullptr,
+                 bool train_with_sample = false) {
+    if (num_keys == 0)
+      return;
+
+    // Build model
+    if (pretrained_model != nullptr) {
+      this->model_.a_ = pretrained_model->a_;
+      this->model_.b_ = pretrained_model->b_;
+    } else {
+      build_model(values, num_keys, &(this->model_), train_with_sample);
+    }
+    init(num_keys);
+    this->model_.expand(static_cast<double>(data_capacity_) / num_keys);
+
+    // Model-based inserts
+    for (int i = 0; i < num_keys; i++) {
+      uint32_t pos = static_cast<uint32_t>(this->model_.predict(values[i].first));
+      uint32_t val = static_cast<uint32_t>(values[i].second);
+      pma.add_edge_update(0, pos, val);
+    }
+    
+  }
+
+  void bulk_load_from_existing(
+    const self_type* node, int left, int right, bool keep_left = false,
+    bool keep_right = false,
+    const LinearModel<T>* precomputed_model = nullptr,
+    int precomputed_num_actual_keys = -1) {
+      
+    // Build model
+    int num_actual_keys = 0;
+    if (precomputed_model == nullptr || precomputed_num_actual_keys == -1) {
+      const_iterator_type it(node, left);
+
+      LinearModelBuilder<T> builder(&(this->model_));
+      for (int i = 0; it.cur_idx_ < right && !it.is_end(); it++, i++) {
+        builder.add(it.key(), i);
+        num_actual_keys++;
+      }
+      builder.build();
+    } else {
+      num_actual_keys = precomputed_num_actual_keys;
+      this->model_.a_ = precomputed_model->a_;
+      this->model_.b_ = precomputed_model->b_;
+    }
+
+    init();
+    if (num_actual_keys == 0)
+      return;
+ 
+    this->model_.expand((static_cast<double>(data_capacity_)) / num_actual_keys);
+
+    const_iterator_type it(node, left);
+    for (; it.cur_idx_ < right && !it.is_end(); it++) {
+      int pos = this->model_.predict(it.key());
+      pma.add_edge_update(0, pos, it.payload());
+    }
+  }
+
+static void build_model(const V* values, int num_keys, LinearModel<T>* model,
+                          bool use_sampling = false) {
+    if (use_sampling) {
+      build_model_sampling(values, num_keys, model);
+      return;
+    }
+
+    LinearModelBuilder<T> builder(model);
+    for (int i = 0; i < num_keys; i++) {
+      builder.add(values[i].first, i);
+    }
+    builder.build();
+  }
+
+  // Uses progressive non-random uniform sampling to build the model
+  // Progressively increases sample size until model parameters are relatively
+  // stable
+  static void build_model_sampling(const V* values, int num_keys,
+                                   LinearModel<T>* model,
+                                   bool verbose = false) {
+    const static int sample_size_lower_bound = 10;
+    // If slope and intercept change by less than this much between samples,
+    // return
+    const static double rel_change_threshold = 0.01;
+    // If intercept changes by less than this much between samples, return
+    const static double abs_change_threshold = 0.5;
+    // Increase sample size by this many times each iteration
+    const static int sample_size_multiplier = 2;
+
+    // If the number of keys is sufficiently small, we do not sample
+    if (num_keys <= sample_size_lower_bound * sample_size_multiplier) {
+      build_model(values, num_keys, model, false);
+      return;
+    }
+
+    int step_size = 1;
+    double sample_size = num_keys;
+    while (sample_size >= sample_size_lower_bound) {
+      sample_size /= sample_size_multiplier;
+      step_size *= sample_size_multiplier;
+    }
+    step_size /= sample_size_multiplier;
+
+    // Run with initial step size
+    LinearModelBuilder<T> builder(model);
+    for (int i = 0; i < num_keys; i += step_size) {
+      builder.add(values[i].first, i);
+    }
+    builder.build();
+    double prev_a = model->a_;
+    double prev_b = model->b_;
+    if (verbose) {
+      std::cout << "Build index, sample size: " << num_keys / step_size
+                << " (a, b): (" << prev_a << ", " << prev_b << ")" << std::endl;
+    }
+
+    // Keep decreasing step size (increasing sample size) until model does not
+    // change significantly
+    while (step_size > 1) {
+      step_size /= sample_size_multiplier;
+      // Need to avoid processing keys we already processed in previous samples
+      int i = 0;
+      while (i < num_keys) {
+        i += step_size;
+        for (int j = 1; (j < sample_size_multiplier) && (i < num_keys);
+             j++, i += step_size) {
+          builder.add(values[i].first, i);
+        }
+      }
+      builder.build();
+
+      double rel_change_in_a = std::abs((model->a_ - prev_a) / prev_a);
+      double abs_change_in_b = std::abs(model->b_ - prev_b);
+      double rel_change_in_b = std::abs(abs_change_in_b / prev_b);
+      if (verbose) {
+        std::cout << "Build index, sample size: " << num_keys / step_size
+                  << " (a, b): (" << model->a_ << ", " << model->b_ << ") ("
+                  << rel_change_in_a << ", " << rel_change_in_b << ")"
+                  << std::endl;
+      }
+      if (rel_change_in_a < rel_change_threshold &&
+          (rel_change_in_b < rel_change_threshold ||
+           abs_change_in_b < abs_change_threshold)) {
+        return;
+      }
+      prev_a = model->a_;
+      prev_b = model->b_;
+    }
+  }
+
+  // TODO: Update this when we are storing keys in PMA as well
+  inline T& get_key(int pos) const { return pos; }
+
+  inline P& get_payload(int pos) { 
+    return pma.find_value(static_cast<uint32_t>(0), static_cast<uint32_t>(pos)); 
+  }
+
+  // I dont know if these next nine methods are needed but I'm including them to the best of my abilities
+  T first_key() const {
+    PMA::iterator it = pma.begin(0);
+    return (*it).dest;
+  }
+
+  T last_key() const {
+    PMA::iterator it = pma.end(0);
+    return (*it).dest;
+  }
+
+  int first_pos() const {
+    PMA::iterator it = pma.end(0);
+    return it.place;    
+  }
+
+  int last_pos() const {
+    PMA::iterator it = pma.end(0);
+    return it.end;    
+  }
+
+  // True if a < b
+  template <class K>
+  forceinline bool key_less(const T& a, const K& b) const {
+    return key_less_(a, b);
+  }
+
+  // True if a <= b
+  template <class K>
+  forceinline bool key_lessequal(const T& a, const K& b) const {
+    return !key_less_(b, a);
+  }
+
+  // True if a > b
+  template <class K>
+  forceinline bool key_greater(const T& a, const K& b) const {
+    return key_less_(b, a);
+  }
+
+  // True if a >= b
+  template <class K>
+  forceinline bool key_greaterequal(const T& a, const K& b) const {
+    return !key_less_(a, b);
+  }
+
+  // True if a == b
+  template <class K>
+  forceinline bool key_equal(const T& a, const K& b) const {
+    return !key_less_(a, b) && !key_less_(b, a);
+  }
+
+  int num_keys_in_range(int left, int right) {
+    const_iterator_type it(this, left);
+    int num_keys = 0;
+    for (; it.cur_idx_ < right && !it.is_end(); it++) {
+      num_keys++;
+    }
+    return num_keys;
+  }
+
+  /*** Lookup ***/
+
+  // Predicts the position of a key using the model
+  inline int predict_position(const T& key) const {
+    int position = this->model_.predict(key);
+    position = std::max<int>(std::min<int>(position, pma.nodes[0].end - 1), 0);
+    return position;
+  } 
+
+  // Returns the position of the provided key
+  // If key is not found returns pma.nodes[0].end, ie what data_capacity_ should be
+  int find_key(const T& key) {
+    int pos = predict_position(key);
+    return pma.find_key(0, pos);
+  }
+
+  // PMA implementation does not allow for duplicate keys so these next two methods will just return the actual position
+  int find_lower(const T& key) {
+    return find_key(key);
+  }
+  int find_upper(const T& key) {
+    return find_key(key);
+  }
+
+  // I'm not sure why this is needed but it's used in alex.h
+  int get_next_filled_position(int pos, bool exclusive) const {
+    if (exclusive) {
+      pos++;
+      if (pos == data_capacity_) return data_capacity_;
+    }
+    uint32_t * dests = pma.edges.dests;
+    while ((pos < data_capacity_) && dests[pos] == UINT32_MAX) {
+      pos++;
+    }
+  }
+
+  // Searches for the first position greater than key
+  // Returns position in range [0, data_capacity]
+  // Compare with find_upper()
+  template <class K>
+  int upper_bound(const K& key) {
+    return find_upper(key) + 1;
+  }  
+
+  // Searches for the first position no less than key
+  // Returns position in range [0, data_capacity]
+  // Compare with find_lower()
+  template <class K>
+  int lower_bound(const K& key) {
+    return find_lower(key);
+  }
+
+  /*** Inserts ***/
+  // Whether empirical cost deviates significantly from expected cost
+  // TODO: Matt is working on this?
+  inline bool significant_cost_deviation() const {
+    return false;
+  }
+
+  // Returns true if cost is catastrophically high and we want to force a split
+  // The heuristic for this is if the worst case insert excedes some arbitrary value
+  // In this case it'll be if the PMA excedes 512 size
+  inline bool catastrophic_cost() const {
+    return pma.edges.loglogN > 3.3;
+  }
+
+  // First value in returned pair is fail flag:
+  // 0 if successful insert (possibly with automatic expansion).
+  // 1 if no insert because of significant cost deviation.
+  // 2 if no insert because of "catastrophic" cost.
+  // 3 if no insert because node is at max capacity.
+  // -1 if key already exists and duplicates not allowed.
+  //
+  // Second value in returned pair is position of inserted key, or of the
+  // already-existing key.
+  // -1 if no insertion.
+  std::pair<int, int> insert(const T& key, const P& payload) {
+    if (significant_cost_deviation()) {
+      return {1, -1};
+    }
+    if (catastrophic_cost()) {
+      return {2, -1};
+    }
+    if (pma.nodes[0].num_neighbors > max_slots_ * kMinDensity_) {
+      return {3, -1};
+    }
+    
+    //insert to PMA
+    int pos = predict_position(key);
+    pma.add_edge_update(0, pos, payload);
+    return {0, pos};
+  }
+
+  // Shouldn't be needed
+  inline bool is_append_mostly_right() const {
+    return false;
+  }
+
+  // Shouldn't be needed
+  inline bool is_append_mostly_left() const {
+    return false;
+  }
+
+  /*** Deletes ***/
+
+  // Erase the left-most key with the input value
+  // Returns the number of keys erased (0 or 1)
+  int erase_one(const T& key) {
+    int pos = find_lower(key);
+
+    if (pos == data_capacity_)
+      return 0;
+
+    // Erase key at pos
+    erase_one_at(pos);
+    return 1;
+  }
+
+  // Erase the key at the given position
+  void erase_one_at(int pos) {
+    // PMA handles contraction already
+    pma.remove_edge(0, pos);
+  }
+
+  // Erase all keys with the input value
+  // Returns the number of keys erased
+  // PMA does not allow multiple of same key so this is the same as erase_one
+  int erase(const T& key) {
+    return erase_one(key);
+  }
+
+  // Erase keys with value between start key (inclusive) and end key.
+  // Returns the number of keys erased.
+  int erase_range(T start_key, T end_key, bool end_key_inclusive = false) {
+    int low_pos = find_lower(start_key);
+    int high_pos = find_upper(end_key);
+    int count = 0;
+    PMA::iterator it = pma.begin(0);
+    for (; it != pma.end(0); ++it) {
+      if ((*it).dest < low_pos) {
+        pma.remove_edge(0, (*it).dest);
+        count++;
+      }
+      if ((*it).dest >= high_pos) {
+        break;
+      }
+    }
+    if (end_key_inclusive && (*it).dest == high_pos) {
+      count++;
+      pma.remove_edge(0, (*it).dest);
+    }
+    return count;
+  }
+
+  /*** Stats ***/
+
+  long long node_size() const override { return sizeof(self_type); }
+
+  long long data_size() {
+    long long data_size = static_cast<long long>(pma.get_size());
+    return data_size;
+  }
+
+  /*** Iterator ***/
+
+  // Forward iterator meant for iterating over a single data node.
+  // By default, it is a "normal" non-const iterator.
+  // Can be templated to be a const iterator.
+  template <typename node_type, typename payload_return_type,
+            typename value_return_type>
+  class Iterator {
+   public:
+    node_type* node_;
+    PMA::iterator it;
+    int cur_idx_ = 0;  // current position in key/data_slots, -1 if at end
+    explicit Iterator(node_type* node) : node_(node) {
+      initialize();
+    }
+
+    Iterator(node_type* node, int idx) : node_(node), cur_idx_(idx) {
+      initialize();
+    }
+
+    void initialize() {
+      it = node_.pma.begin(0);
+      // Walk pma iterator to cur_idx_
+      for (int i = 0; i < cur_idx_; i++, ++it){}
+    }
+
+    void operator++(int) {
+      cur_idx_++;
+      ++it;
+    }
+
+    V operator*() const {
+      return std::make_pair((*it).dest, (*it).value);
+    }
+
+    const T& key() const {
+      return (*it).dest;
+    }
+
+    const P& payload() const {
+      return (*it).value;
+    }
+
+    bool is_end() const { return it != node_.pma.end(0); }
+
+    bool operator==(const Iterator& rhs) const {
+      return cur_idx_ == rhs.cur_idx_;
+    }
+
+    bool operator!=(const Iterator& rhs) const { return !(*this == rhs); };
+  };
+
+  iterator_type begin() { return iterator_type(this, 0); }
+
 };
 }
