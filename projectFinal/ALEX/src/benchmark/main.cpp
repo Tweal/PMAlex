@@ -67,8 +67,10 @@ int main(int argc, char* argv[]) {
     //cast both to uint32_t, 
   }
 
+  uint32_t init_n = 1;
   // Create ALEX and bulk load
-  PMA pma = PMA(1);
+  PMA pma;
+  pma = (init_n);
   alex::Alex<KEY_TYPE, PAYLOAD_TYPE> index;
   std::sort(values, values + init_num_keys,
             [](auto const& a, auto const& b) { return a.first < b.first; });

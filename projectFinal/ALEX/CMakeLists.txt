@@ -21,7 +21,7 @@ include_directories(src/core
 ../terrace/include)
 
 add_executable(example src/examples/main.cpp)
-add_executable(benchmark src/benchmark/main.cpp)
+add_executable(benchmark src/benchmark/main.cpp ../terrace/src/PMA.cc ../terrace/src/PMA_Lock.cc)
 
 set(DOCTEST_DOWNLOAD_DIR ${CMAKE_CURRENT_BINARY_DIR}/doctest)
 file(DOWNLOAD
