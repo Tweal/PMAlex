@@ -1,7 +1,7 @@
 CMakeFiles/benchmark.dir/src/benchmark/main.cpp.o: \
- /home/u1419871/Documents/CS6530Project/projectFinal/ALEX/src/benchmark/main.cpp \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/src/benchmark/main.cpp \
  /usr/include/stdc-predef.h \
- /home/u1419871/Documents/CS6530Project/projectFinal/ALEX/src/benchmark/../core/alex.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/src/benchmark/../core/alex.h \
  /usr/include/c++/8/fstream /usr/include/c++/8/istream \
  /usr/include/c++/8/ios /usr/include/c++/8/iosfwd \
  /usr/include/c++/8/x86_64-redhat-linux/bits/c++config.h \
@@ -121,7 +121,7 @@ CMakeFiles/benchmark.dir/src/benchmark/main.cpp.o: \
  /usr/include/c++/8/bits/stl_deque.h /usr/include/c++/8/bits/deque.tcc \
  /usr/include/c++/8/bits/stl_stack.h \
  /usr/include/c++/8/bits/uses_allocator.h \
- /home/u1419871/Documents/CS6530Project/projectFinal/ALEX/src/benchmark/../core/alex_base.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/src/benchmark/../core/alex_base.h \
  /usr/include/c++/8/algorithm /usr/include/c++/8/utility \
  /usr/include/c++/8/bits/stl_relops.h /usr/include/c++/8/bits/stl_algo.h \
  /usr/include/c++/8/bits/algorithmfwd.h \
@@ -231,18 +231,90 @@ CMakeFiles/benchmark.dir/src/benchmark/main.cpp.o: \
  /usr/lib/gcc/x86_64-redhat-linux/8/include/pkuintrin.h \
  /usr/include/c++/8/bitset /usr/include/c++/8/cassert \
  /usr/include/assert.h \
- /home/u1419871/Documents/CS6530Project/projectFinal/ALEX/src/benchmark/../core/alex_fanout_tree.h \
- /home/u1419871/Documents/CS6530Project/projectFinal/ALEX/src/benchmark/../core/alex_nodes.h \
- /usr/include/c++/8/iomanip /usr/include/c++/8/locale \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/src/benchmark/../core/alex_fanout_tree.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/src/benchmark/../core/alex_nodes.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/PMA.hpp \
+ /usr/include/c++/8/sstream /usr/include/c++/8/bits/sstream.tcc \
+ /usr/include/c++/8/atomic /usr/include/c++/8/queue \
+ /usr/include/c++/8/bits/stl_queue.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/parallel.h \
+ /usr/lib/gcc/x86_64-redhat-linux/8/include/limits.h \
+ /usr/lib/gcc/x86_64-redhat-linux/8/include/syslimits.h \
+ /usr/include/limits.h /usr/include/bits/posix1_lim.h \
+ /usr/include/bits/local_lim.h /usr/include/linux/limits.h \
+ /usr/include/bits/posix2_lim.h /usr/include/bits/xopen_lim.h \
+ /usr/include/bits/uio_lim.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/PMA_Lock.hpp \
+ /usr/include/unistd.h /usr/include/bits/posix_opt.h \
+ /usr/include/bits/environments.h /usr/include/bits/confname.h \
+ /usr/include/bits/getopt_posix.h /usr/include/bits/getopt_core.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/util.h \
+ /usr/include/c++/8/unordered_map /usr/include/c++/8/bits/hashtable.h \
+ /usr/include/c++/8/bits/hashtable_policy.h \
+ /usr/include/c++/8/bits/unordered_map.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/spdlog.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/common.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/tweakme.h \
+ /usr/include/c++/8/functional /usr/include/c++/8/bits/std_function.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/details/null_mutex.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/fmt/fmt.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/fmt/bundled/core.h \
+ /usr/include/c++/8/iterator /usr/include/c++/8/bits/stream_iterator.h \
+ /usr/include/c++/8/experimental/string_view \
+ /usr/include/c++/8/experimental/bits/lfts_config.h \
+ /usr/include/c++/8/experimental/bits/string_view.tcc \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/fmt/bundled/format.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/fmt/bundled/core.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/fmt/bundled/format-inl.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/fmt/bundled/format.h \
+ /usr/include/c++/8/climits /usr/include/c++/8/cstdarg \
+ /usr/include/c++/8/cstddef /usr/include/c++/8/locale \
  /usr/include/c++/8/bits/locale_facets_nonio.h \
  /usr/include/c++/8/x86_64-redhat-linux/bits/time_members.h \
  /usr/include/c++/8/x86_64-redhat-linux/bits/messages_members.h \
  /usr/include/libintl.h /usr/include/c++/8/bits/locale_facets_nonio.tcc \
  /usr/include/c++/8/bits/locale_conv.h \
- /usr/include/c++/8/bits/quoted_string.h /usr/include/c++/8/sstream \
- /usr/include/c++/8/bits/sstream.tcc \
- /home/u1419871/Documents/CS6530Project/projectFinal/ALEX/src/benchmark/flags.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/details/registry.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/details/periodic_worker.h \
+ /usr/include/c++/8/condition_variable \
+ /usr/include/c++/8/bits/std_mutex.h /usr/include/c++/8/mutex \
+ /usr/include/c++/8/thread \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/logger.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/formatter.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/details/log_msg.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/details/os.h \
+ /usr/include/sys/stat.h /usr/include/bits/stat.h \
+ /usr/include/bits/statx.h /usr/include/linux/stat.h \
+ /usr/include/linux/types.h /usr/include/asm/types.h \
+ /usr/include/asm-generic/types.h /usr/include/asm-generic/int-ll64.h \
+ /usr/include/asm/bitsperlong.h /usr/include/asm-generic/bitsperlong.h \
+ /usr/include/linux/posix_types.h /usr/include/linux/stddef.h \
+ /usr/include/asm/posix_types.h /usr/include/asm/posix_types_64.h \
+ /usr/include/asm-generic/posix_types.h /usr/include/bits/statx-generic.h \
+ /usr/include/bits/types/struct_statx_timestamp.h \
+ /usr/include/bits/types/struct_statx.h /usr/include/fcntl.h \
+ /usr/include/bits/fcntl.h /usr/include/bits/fcntl-linux.h \
+ /usr/include/bits/types/struct_iovec.h /usr/include/linux/falloc.h \
+ /usr/include/sys/syscall.h /usr/include/asm/unistd.h \
+ /usr/include/asm/unistd_64.h /usr/include/bits/syscall.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/sinks/sink.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/details/pattern_formatter.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/details/fmt_helper.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/details/logger_impl.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/sinks/ansicolor_sink.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/details/console_globals.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/spdlog/version.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/integerSort/blockRadixSort/blockRadixSort.h \
+ /usr/include/c++/8/math.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/integerSort/blockRadixSort/parallel.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/integerSort/blockRadixSort/sequence.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/integerSort/blockRadixSort/utils.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/integerSort/blockRadixSort/helpers.h \
+ /usr/include/sys/time.h /usr/include/malloc.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/../terrace/include/integerSort/blockRadixSort/transpose.h \
+ /usr/include/c++/8/iomanip /usr/include/c++/8/bits/quoted_string.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/src/benchmark/flags.h \
  /usr/include/c++/8/map /usr/include/c++/8/bits/stl_map.h \
  /usr/include/c++/8/bits/stl_multimap.h \
- /home/u1419871/Documents/CS6530Project/projectFinal/ALEX/src/benchmark/utils.h \
- /home/u1419871/Documents/CS6530Project/projectFinal/ALEX/src/benchmark/zipf.h
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/src/benchmark/utils.h \
+ /home/u1131180/CS6530/CS6530Project/projectFinal/ALEX/src/benchmark/zipf.h

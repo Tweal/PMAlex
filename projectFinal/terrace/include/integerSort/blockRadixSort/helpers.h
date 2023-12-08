@@ -4,10 +4,10 @@
 #if OPENMP == 1
 #include <omp.h>
 #else
-#include <cilk/cilk.h>
-#include <cilk/cilk_api.h>
-#include <cilk/reducer_opadd.h>
-#include <cilk/reducer_opxor.h>
+// #include <cilk/cilk.h>
+// #include <cilk/cilk_api.h>
+// #include <cilk/reducer_opadd.h>
+// #include <cilk/reducer_opxor.h>
 #endif
 
 #include <sys/time.h>

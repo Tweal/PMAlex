@@ -7,6 +7,8 @@
 
 #include "../core/alex.h"
 
+#include "PMA.hpp"
+
 #include <iomanip>
 
 #include "flags.h"
@@ -62,9 +64,11 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i < init_num_keys; i++) {
     values[i].first = keys[i];
     values[i].second = static_cast<PAYLOAD_TYPE>(gen_payload());
+    //cast both to uint32_t, 
   }
 
   // Create ALEX and bulk load
+  PMA pma = PMA(1);
   alex::Alex<KEY_TYPE, PAYLOAD_TYPE> index;
   std::sort(values, values + init_num_keys,
             [](auto const& a, auto const& b) { return a.first < b.first; });
