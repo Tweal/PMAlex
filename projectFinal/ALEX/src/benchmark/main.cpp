@@ -15,8 +15,8 @@
 #include "utils.h"
 
 // Modify these if running your own workload
-#define KEY_TYPE double
-#define PAYLOAD_TYPE double
+#define KEY_TYPE uint32_t
+#define PAYLOAD_TYPE uint32_t
 
 /*
  * Required flags:
@@ -62,19 +62,23 @@ int main(int argc, char* argv[]) {
   auto values = new std::pair<KEY_TYPE, PAYLOAD_TYPE>[init_num_keys];
   std::mt19937_64 gen_payload(std::random_device{}());
   for (int i = 0; i < init_num_keys; i++) {
+    // The key and value types have been changed to uint32_t at top of file
     values[i].first = keys[i];
-    values[i].second = static_cast<PAYLOAD_TYPE>(gen_payload());
-    //cast both to uint32_t, 
+    values[i].second = static_cast<PAYLOAD_TYPE>(gen_payload()); 
   }
 
-  uint32_t init_n = 1;
-  // Create ALEX and bulk load
-  PMA pma;
-  pma = (init_n);
-  alex::Alex<KEY_TYPE, PAYLOAD_TYPE> index;
+  // PMA
+  PMA pma(1);
+
+  // Bulk load 
+  for (int i = 0; i < init_num_keys; i++) {
+    pma.add_edge_update(0, values[i].first, values[i].second);
+  }
+
+  // alex::Alex<KEY_TYPE, PAYLOAD_TYPE> index;
   std::sort(values, values + init_num_keys,
             [](auto const& a, auto const& b) { return a.first < b.first; });
-  index.bulk_load(values, init_num_keys);
+  // index.bulk_load(values, init_num_keys);
 
   // Run workload
   int i = init_num_keys;
@@ -108,10 +112,11 @@ int main(int argc, char* argv[]) {
       }
       auto lookups_start_time = std::chrono::high_resolution_clock::now();
       for (int j = 0; j < num_lookups_per_batch; j++) {
-        KEY_TYPE key = lookup_keys[j];
-        PAYLOAD_TYPE* payload = index.get_payload(key);
+        // KEY_TYPE key = lookup_keys[j];
+        // PAYLOAD_TYPE* payload = index.get_payload(key);
+        PAYLOAD_TYPE payload = pma.find_value(0, values[j].first);
         if (payload) {
-          sum += *payload;
+          sum += payload;
         }
       }
       auto lookups_end_time = std::chrono::high_resolution_clock::now();
@@ -129,7 +134,8 @@ int main(int argc, char* argv[]) {
     int num_keys_after_batch = i + num_actual_inserts;
     auto inserts_start_time = std::chrono::high_resolution_clock::now();
     for (; i < num_keys_after_batch; i++) {
-      index.insert(keys[i], static_cast<PAYLOAD_TYPE>(gen_payload()));
+      //index.insert(keys[i], static_cast<PAYLOAD_TYPE>(gen_payload()));
+        pma.add_edge_update(0, values[i].first, values[i].second);
     }
     auto inserts_end_time = std::chrono::high_resolution_clock::now();
     double batch_insert_time =

@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -march=native -Wall -Wextra -O3 -DNDEBUG CMakeFiles/benchmark.dir/src/benchmark/main.cpp.o CMakeFiles/benchmark.dir/home/u1131180/CS6530/CS6530Project/projectFinal/terrace/src/PMA.cc.o CMakeFiles/benchmark.dir/home/u1131180/CS6530/CS6530Project/projectFinal/terrace/src/PMA_Lock.cc.o -o benchmark 
