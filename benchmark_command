@@ -1,0 +1,1 @@
+./build/benchmark --keys_file=/scratch/u1419871/CS6530/ycsb-200M.bin.data --keys_file_type=binary --init_num_keys=10000000 --total_num_keys=200000000 --batch_size=1000000 --lookup_distribution=zipf --insert_frac=0.1
